@@ -1,0 +1,113 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String       @id @default(uuid())
+  email           String       @unique
+  password        String?
+  phone           String?      @unique
+  isPremium         Boolean   @default(false)
+  premiumSince  DateTime?
+  premiumExpires    DateTime?
+  streakCount       Int       @default(0)
+  lastStreakDate    DateTime?
+  isVerified      Boolean      @default(false)
+  isPhoneVerified Boolean      @default(false)
+  isFaceVerified  Boolean      @default(false)
+  provider        String       @default("email") // 'email', 'google', 'facebook', 'apple'
+  name            String?
+  country         String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  otp             OTP[]
+  userProfile     UserProfile?
+
+  sentInteractions     MatchInteraction[] @relation("UserSentInteractions")
+  receivedInteractions MatchInteraction[] @relation("UserReceivedInteractions")
+
+   sentMessages     Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+
+  ProfileBoost ProfileBoost[]
+}
+
+model OTP {
+  id        String   @id @default(uuid())
+  code      String
+  email     String?
+  phone     String?
+  expiresAt DateTime
+  verified  Boolean  @default(false)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String?
+  createdAt DateTime @default(now())
+}
+
+model UserProfile {
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  fullName   String
+  boostedAt DateTime?
+  intentions String[] 
+  birthday   DateTime
+  gender     Gender
+  photos     String[] // Array of S3 URLs
+  quizAnswers         Json?       // To hold the remaining 5+ questions flexibly
+  compatibilityScore  Int?        // % match with another user (calculated)
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+model MatchInteraction {
+  id        String   @id @default(uuid())
+  userId    String
+  targetId  String
+  action    MatchAction
+  isMatch   Boolean     @default(false)
+  createdAt DateTime @default(now())
+
+  user   User @relation("UserSentInteractions", fields: [userId], references: [id])
+  target User @relation("UserReceivedInteractions", fields: [targetId], references: [id])
+}
+
+enum MatchAction {
+  LIKE
+  PASS
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  senderId   String
+  receiverId String
+  content    String
+  translatedContent String?
+  createdAt  DateTime @default(now())
+  isRead     Boolean  @default(false)
+
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id])
+  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+}
+
+model ProfileBoost {
+  id      String   @id @default(uuid())
+  userId  String
+  date    String
+  user    User     @relation(fields: [userId], references: [id])
+}
+
+
+
