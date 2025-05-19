@@ -13,9 +13,10 @@ import { ConfigModule } from '@nestjs/config';
 import { ChatModule } from './chat/chat.module';
 import { TranslateModule } from './translate/translate.module';
 import { NotificationModule } from './notification/notification.module';
+import { SubscriptionModule } from './subscription/subscription.module';
 
 @Module({
-  imports: [AuthModule, UserModule, PrismaModule, MatchModule, NotificationModule, TranslateModule, ChatModule,
+  imports: [AuthModule, UserModule, PrismaModule, MatchModule, NotificationModule, TranslateModule, ChatModule, SubscriptionModule,
     ConfigModule.forRoot({
       isGlobal: true, // 👈 makes ConfigService available globally
     }),

@@ -7,6 +7,19 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserRole {
+  USER
+  ADMIN
+  SUPERADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  BANNED
+  PENDING
+}
+
+
 model User {
   id              String       @id @default(uuid())
   email           String       @unique
@@ -26,7 +39,9 @@ model User {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
   otp             OTP[]
+  status       UserStatus   @default(PENDING)
   userProfile     UserProfile?
+  role     UserRole @default(USER)
 
   sentInteractions     MatchInteraction[] @relation("UserSentInteractions")
   receivedInteractions MatchInteraction[] @relation("UserReceivedInteractions")
@@ -50,19 +65,32 @@ model OTP {
 }
 
 model UserProfile {
-  id         String   @id @default(uuid())
-  userId     String   @unique
-  fullName   String
-  boostedAt DateTime?
-  intentions String[] 
-  birthday   DateTime
-  gender     Gender
-  photos     String[] // Array of S3 URLs
-  quizAnswers         Json?       // To hold the remaining 5+ questions flexibly
-  compatibilityScore  Int?        // % match with another user (calculated)
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  fullName       String?
+  intentions     String[]
+  birthday       DateTime?
+  gender         Gender?
+  preference     String?
+  photos         String[] @default([])
+  boostedAt      DateTime?
+  quizAnswers    Json?
+  profileCompletionStep Int @default(0)
 
   user User @relation(fields: [userId], references: [id])
 }
+
+model PendingSignup {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  hashedPassword String
+  country     String?
+  otp         String
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+}
+
+
 
 
 
@@ -110,4 +138,11 @@ model ProfileBoost {
 }
 
 
+model PasswordReset {
+  id         String   @id @default(uuid())
+  email      String   @unique
+  otp        String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+}
 

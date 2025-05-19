@@ -1,11 +1,9 @@
 /* eslint-disable prettier/prettier */
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { CreateProfileDto } from '../auth/dto/create-profile.dto';
 import { MatchingQuizDto } from 'src/auth/dto/matching-quiz.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
-import { SubscribeDto } from './dto/subscribe.dto';
 import { MatchService } from 'src/match/match.service';
 import * as bcrypt from 'bcryptjs';
 import * as dayjs from 'dayjs';
@@ -18,27 +16,57 @@ export class UserService {
     private matchService: MatchService,
   ) {}
 
-  async createOrUpdateProfile(userId: string, dto: CreateProfileDto) {
-    return this.prisma.userProfile.upsert({
-      where: { userId },
-      update: {
-        fullName: dto.fullName,
-        intentions: dto.intentions,
-        birthday: new Date(dto.birthday),
-        gender: dto.gender,
-        photos: dto.photos ?? [],
-      },
-      create: {
-        userId,
-        fullName: dto.fullName,
-        intentions: dto.intentions,
-        birthday: new Date(dto.birthday),
-        gender: dto.gender,
-        photos: dto.photos ?? [],
-         
-      },
-    });
+  async setName(userId: string, fullName: string) {
+  return this.prisma.userProfile.upsert({
+    where: { userId },
+    update: { fullName, profileCompletionStep: 1 },
+    create: {
+      fullName,
+      profileCompletionStep: 1,
+      user: { connect: { id: userId } },
+    },
+  });
+}
+
+async setIntentions(userId: string, intentions: string[]) {
+  return this.prisma.userProfile.update({
+    where: { userId },
+    data: { intentions, profileCompletionStep: 2  },
+  });
+}
+
+async setBirthday(userId: string, birthday: string) {
+  return this.prisma.userProfile.update({
+    where: { userId },
+    data: { birthday: new Date(birthday), profileCompletionStep: 3  },
+  });
+}
+
+async setGender(userId: string, gender: Gender) {
+  return this.prisma.userProfile.update({
+    where: { userId },
+    data: { gender, profileCompletionStep: 4 },
+  });
+}
+
+async setPreference(userId: string, preference: string) {
+  return this.prisma.userProfile.update({
+    where: { userId },
+    data: { preference, profileCompletionStep: 5 },
+  });
+}
+
+async addPhotos(userId: string, photoUrls: string[]) {
+  if (photoUrls.length < 2) {
+    throw new ForbiddenException('Please upload at least two photos');
   }
+
+  return this.prisma.userProfile.update({
+    where: { userId },
+    data: { photos: photoUrls, profileCompletionStep: 6 },
+  });
+}
+
 
   async submitQuiz(userId: string, dto: MatchingQuizDto) {
     return this.prisma.userProfile.update({
@@ -192,19 +220,7 @@ export class UserService {
     return { message: 'Photo added', photos: updatedPhotos };
   }
 
-  async subscribe(userId: string, dto: SubscribeDto) {
-    const expiry = new Date(dto.premiumExpires);
-
-    return this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        isPremium: true,
-        premiumSince: new Date(),
-        premiumExpires: expiry,
-      },
-    });
-  }
-
+  
   async upgradeToPremium(userId: string, durationInDays = 30) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
