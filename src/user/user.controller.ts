@@ -9,10 +9,10 @@ import {
   Patch,
 } from '@nestjs/common';
 import { UserService } from './user.service';
-import { GetUser } from 'src/common/decorators/get-user.decorator';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { MatchingQuizDto } from 'src/auth/dto/matching-quiz.dto';
-import { MatchService } from 'src/match/match.service';
+import { GetUser } from '../common/decorators/get-user.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { MatchingQuizDto } from '../auth/dto/matching-quiz.dto';
+import { MatchService } from '../match/match.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { Gender } from '@prisma/client';
 

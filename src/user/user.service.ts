@@ -1,10 +1,10 @@
 /* eslint-disable prettier/prettier */
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { MatchingQuizDto } from 'src/auth/dto/matching-quiz.dto';
+import { MatchingQuizDto } from '../auth/dto/matching-quiz.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
-import { MatchService } from 'src/match/match.service';
+import { MatchService } from '../match/match.service';
 import * as bcrypt from 'bcryptjs';
 import * as dayjs from 'dayjs';
 import { Gender } from '@prisma/client';

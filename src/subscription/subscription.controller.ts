@@ -5,8 +5,8 @@ import { SubscriptionService } from './subscription.service';
 import { SubscribeDto } from './dto/subscribe.dto';
 import { ChangePlanDto } from './dto/change-plan.dto';
 import { CancelSubscriptionDto } from './dto/cancel-subscription.dto';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { GetUser } from 'src/common/decorators/get-user.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { GetUser } from '../common/decorators/get-user.decorator';
 
 @Controller('subscription')
 @UseGuards(JwtAuthGuard)

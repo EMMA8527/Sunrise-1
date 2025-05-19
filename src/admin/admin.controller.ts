@@ -4,9 +4,9 @@ import { AdminService } from './admin.service';
 import { CreateAdminUserDto } from './dto/create-admin-user.dto';
 import { UpdateAdminUserDto } from './dto/update-admin-user.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { Roles } from 'src/common/decorators/roles.decorator';
-import { RolesGuard } from 'src/auth/guards/roles.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)

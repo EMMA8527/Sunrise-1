@@ -6,7 +6,7 @@ import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { LoginDto } from './dto/login.dto';
 import { SubmitPhoneDto } from './dto/submit-phone.dto';
 import { VerifyPhoneOtpDto } from './dto/verify-phone.dto';
-import { GetUser } from 'src/common/decorators/get-user.decorator';
+import { GetUser } from '../common/decorators/get-user.decorator';
 import { VerifyFaceDto } from './dto/verify-face.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
