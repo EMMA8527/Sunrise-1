@@ -299,6 +299,4 @@ async resendOtp(dto: ResendOtpDto) {
 }
 
 
-}  
-
-pm2 start dist/src/main.js --name sunrise-api
+} 
