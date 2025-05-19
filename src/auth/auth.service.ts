@@ -15,6 +15,7 @@ import { VerifyFaceDto } from './dto/verify-face.dto';
 import { VerifyResetOtpDto } from './dto/verify-reset-otp.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ResendOtpDto } from './dto/resend-otp.dto';
 
 
 @Injectable()
@@ -268,5 +269,34 @@ async resetPassword(dto: ResetPasswordDto) {
 
   return { message: 'Password reset successful 🔒' };
 }
+
+async resendOtp(dto: ResendOtpDto) {
+  const pending = await this.prisma.pendingSignup.findUnique({ where: { email: dto.email } });
+
+  if (!pending) {
+    throw new BadRequestException('No signup found for this email');
+  }
+
+  if (await this.prisma.user.findUnique({ where: { email: dto.email } })) {
+    throw new BadRequestException('This email is already registered');
+  }
+
+  const newOtp = randomInt(1000, 9999).toString();
+  const newExpiry = dayjs().add(10, 'minutes').toDate();
+
+  await this.prisma.pendingSignup.update({
+    where: { email: dto.email },
+    data: {
+      otp: newOtp,
+      expiresAt: newExpiry,
+    },
+  });
+
+  await sendOtpEmail(dto.email, newOtp);
+  console.log(`Resent OTP to ${dto.email}: ${newOtp}`);
+
+  return { message: 'OTP resent successfully 📧' };
+}
+
 
 }  
