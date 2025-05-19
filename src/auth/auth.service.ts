@@ -44,7 +44,7 @@ if (existingUser?.isVerified) {
       expiresAt: dayjs().add(10, 'minutes').toDate(),
     },
   });
-
+console.log(`Generated OTP: ${otp}`);
   await sendOtpEmail(dto.email, otp);
   console.log(`Pending OTP for ${dto.email}: ${otp}`);
 
