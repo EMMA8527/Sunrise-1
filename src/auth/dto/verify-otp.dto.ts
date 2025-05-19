@@ -5,6 +5,6 @@ export class VerifyOtpDto {
   @IsEmail()
   email: string;
 
-  @Length(6, 6)
+  @Length(4, 4)
   code: string;
 }
