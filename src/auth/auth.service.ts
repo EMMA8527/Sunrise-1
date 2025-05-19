@@ -23,7 +23,10 @@ export class AuthService {
 
   async signup(dto: SignupDto) {
   const existingUser = await this.prisma.user.findUnique({ where: { email: dto.email } });
-  if (existingUser) throw new BadRequestException('Email already exists');
+if (existingUser?.isVerified) {
+  throw new BadRequestException('Email already exists');
+}
+
 
   const pending = await this.prisma.pendingSignup.findUnique({ where: { email: dto.email } });
   if (pending) throw new BadRequestException('A signup is already in progress for this email.');
