@@ -6,7 +6,6 @@ import {
   UseGuards,
   Get,
   Param,
-  Patch,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { GetUser } from '../common/decorators/get-user.decorator';
@@ -119,57 +118,40 @@ export class UserController {
     return this.userService.boostProfile(userId);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Patch('profile/name')
-  async setName(
-    @GetUser('id') userId: string,
-    @Body() dto: { fullName: string },
-  ) {
-    return this.userService.setName(userId, dto.fullName);
-  }
+@UseGuards(JwtAuthGuard)
+@Post('set-name')
+async setName(@GetUser('id') userId: string, @Body('fullName') fullName: string) {
+  return this.userService.setName(userId, fullName);
+}
 
-  @UseGuards(JwtAuthGuard)
-  @Patch('profile/intentions')
-  async setIntentions(
-    @GetUser('id') userId: string,
-    @Body() dto: { intentions: string[] },
-  ) {
-    return this.userService.setIntentions(userId, dto.intentions);
-  }
+@UseGuards(JwtAuthGuard)
+@Post('set-intentions')
+async setIntentions(@GetUser('id') userId: string, @Body('intentions') intentions: string[]) {
+  return this.userService.setIntentions(userId, intentions);
+}
 
-  @UseGuards(JwtAuthGuard)
-  @Patch('profile/birthday')
-  async setBirthday(
-    @GetUser('id') userId: string,
-    @Body() dto: { birthday: string },
-  ) {
-    return this.userService.setBirthday(userId, dto.birthday);
-  }
+@UseGuards(JwtAuthGuard)
+@Post('set-birthday')
+async setBirthday(@GetUser('id') userId: string, @Body('birthday') birthday: string) {
+  return this.userService.setBirthday(userId, birthday);
+}
 
-  @UseGuards(JwtAuthGuard)
-  @Patch('profile/gender')
-  async setGender(
-    @GetUser('id') userId: string,
-    @Body() dto: { gender: Gender },
-  ) {
-    return this.userService.setGender(userId, dto.gender);
-  }
+@UseGuards(JwtAuthGuard)
+@Post('set-gender')
+async setGender(@GetUser('id') userId: string, @Body('gender') gender: Gender) {
+  return this.userService.setGender(userId, gender);
+}
 
-  @UseGuards(JwtAuthGuard)
-  @Patch('profile/preference')
-  async setShowMe(
-    @GetUser('id') userId: string,
-    @Body() dto: { preference: string }, // fixed: dto.preference, not dto.showMe
-  ) {
-    return this.userService.setPreference(userId, dto.preference);
-  }
+@UseGuards(JwtAuthGuard)
+@Post('set-preference')
+async setPreference(@GetUser('id') userId: string, @Body('preference') preference: string) {
+  return this.userService.setPreference(userId, preference);
+}
 
-  @UseGuards(JwtAuthGuard)
-  @Patch('profile/photos')
-  async addPhotos(
-    @GetUser('id') userId: string,
-    @Body() dto: { photos: string[] },
-  ) {
-    return this.userService.addPhotos(userId, dto.photos);
-  }
+@UseGuards(JwtAuthGuard)
+@Post('add-photos')
+async addPhotos(@GetUser('id') userId: string, @Body('photoUrls') photoUrls: string[]) {
+  return this.userService.addPhotos(userId, photoUrls);
+}
+
 }
