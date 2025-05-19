@@ -6,6 +6,6 @@ export class VerifyResetOtpDto {
   email: string;
 
   @IsString()
-  @Length(4, 6)
+  @Length(4, 4)
   otp: string;
 }
