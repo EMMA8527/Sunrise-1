@@ -22,50 +22,78 @@ import { ResendOtpDto } from './dto/resend-otp.dto';
 export class AuthService {
   constructor(private prisma: PrismaService, private jwt: JwtService,) {}
 
-  async signup(dto: SignupDto) {
-  const existingUser = await this.prisma.user.findUnique({ where: { email: dto.email } });
-if (existingUser?.isVerified) {
-  throw new BadRequestException('Email already exists');
-}
+  private async signToken(
+    userId: string,
+    email: string,
+    role: string,
+  ): Promise<string> {
+    return this.jwt.signAsync(
+      { sub: userId, email, role },
+      { secret: process.env.JWT_SECRET, expiresIn: '7d' },
+    );
+  }
 
+ async signup(dto: SignupDto) {
+  const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
+  if (user) {
+    if (user.isVerified) {
+      throw new BadRequestException('Email already registered and verified');
+    } else {
+      throw new BadRequestException('Email registered but not verified. Please verify or resend OTP.');
+    }
+  }
 
-  const pending = await this.prisma.pendingSignup.findUnique({ where: { email: dto.email } });
-  if (pending) throw new BadRequestException('A signup is already in progress for this email.');
+  const existingPending = await this.prisma.pendingSignup.findUnique({
+    where: { email: dto.email },
+  });
+
+  if (existingPending && existingPending.expiresAt > new Date()) {
+    throw new BadRequestException('OTP already sent. Please wait or request a resend.');
+  }
 
   const hashedPassword = await bcrypt.hash(dto.password, 10);
-  const otp = randomInt(1000, 9999).toString(); // 4-digit OTP
+  const otp = randomInt(1000, 9999).toString();
+  const expiresAt = dayjs().add(10, 'minutes').toDate();
 
-  await this.prisma.pendingSignup.create({
-    data: {
-      email: dto.email,
-      hashedPassword,
-      country: dto.country,
-      otp,
-      expiresAt: dayjs().add(10, 'minutes').toDate(),
-    },
+  await this.prisma.pendingSignup.upsert({
+    where: { email: dto.email },
+    update: { hashedPassword, otp, expiresAt, country: dto.country },
+    create: { email: dto.email, hashedPassword, otp, expiresAt, country: dto.country },
   });
-console.log(`Generated OTP: ${otp}`);
-  await sendOtpEmail(dto.email, otp);
-  console.log(`Pending OTP for ${dto.email}: ${otp}`);
 
+  await sendOtpEmail(dto.email, otp);
+  console.log(`OTP sent to ${dto.email}: ${otp}`);
   return { message: 'Signup initiated. OTP sent to email.' };
 }
+
 
   async verifyOtp(dto: VerifyOtpDto) {
   const pending = await this.prisma.pendingSignup.findUnique({
     where: { email: dto.email },
   });
 
-  if (!pending || pending.otp !== dto.code) {
-    throw new ForbiddenException('Invalid OTP');
+  if (!pending) throw new BadRequestException('No signup found for this email');
+  if (pending.otp !== dto.code) throw new ForbiddenException('Invalid OTP');
+  if (pending.expiresAt < new Date()) throw new ForbiddenException('OTP expired');
+
+  const existingUser = await this.prisma.user.findUnique({
+    where: { email: dto.email },
+  });
+
+  if (existingUser) {
+    if (existingUser.isVerified) {
+      throw new BadRequestException('User already verified');
+    } else {
+      await this.prisma.user.update({
+        where: { email: dto.email },
+        data: { isVerified: true },
+      });
+      await this.prisma.pendingSignup.delete({ where: { email: dto.email } });
+      return { message: 'Email verified successfully ✅' };
+    }
   }
 
-  if (pending.expiresAt < new Date()) {
-    throw new ForbiddenException('OTP expired');
-  }
-
-  // Create user from pending record
-  const user = await this.prisma.user.create({
+  await this.prisma.user.create({
     data: {
       email: pending.email,
       password: pending.hashedPassword,
@@ -74,9 +102,7 @@ console.log(`Generated OTP: ${otp}`);
     },
   });
 
-  // Remove the pending record
   await this.prisma.pendingSignup.delete({ where: { email: dto.email } });
-
   return { message: 'Signup completed. Email verified ✅' };
 }
 
@@ -134,17 +160,22 @@ console.log(`Generated OTP: ${otp}`);
   
 
   async login(dto: LoginDto) {
-  const user = await this.prisma.user.findUnique({
-    where: { email: dto.email },
-  });
+  const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
 
-  if (!user) throw new ForbiddenException('Invalid credentials');
+  if (!user) {
+    const pending = await this.prisma.pendingSignup.findUnique({ where: { email: dto.email } });
+    if (pending) {
+      throw new ForbiddenException('Please verify your email before logging in');
+    }
+    throw new ForbiddenException('Invalid credentials');
+  }
+
   if (!user.isVerified) throw new ForbiddenException('Please verify your email first');
 
   const isMatch = await bcrypt.compare(dto.password, user.password);
   if (!isMatch) throw new ForbiddenException('Invalid credentials');
 
-  const token = await this.signToken(user.id, user.email, user.role); // pass role
+  const token = await this.signToken(user.id, user.email, user.role);
 
   return {
     accessToken: token,
@@ -152,20 +183,9 @@ console.log(`Generated OTP: ${otp}`);
       id: user.id,
       email: user.email,
       name: user.name,
-      role: user.role, // send role in response
+      role: user.role,
     },
   };
-}
-
- private async signToken(
-  userId: string,
-  email: string,
-  role: string, // add role here
-): Promise<string> {
-  return this.jwt.signAsync(
-    { sub: userId, email, role },
-    { secret: process.env.JWT_SECRET, expiresIn: '7d' },
-  );
 }
 
 
@@ -271,14 +291,15 @@ async resetPassword(dto: ResetPasswordDto) {
 }
 
 async resendOtp(dto: ResendOtpDto) {
+  const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
+  if (user?.isVerified) {
+    throw new BadRequestException('User is already verified');
+  }
+
   const pending = await this.prisma.pendingSignup.findUnique({ where: { email: dto.email } });
 
   if (!pending) {
-    throw new BadRequestException('No signup found for this email');
-  }
-
-  if (await this.prisma.user.findUnique({ where: { email: dto.email } })) {
-    throw new BadRequestException('This email is already registered');
+    throw new BadRequestException('No signup session found for this email');
   }
 
   const newOtp = randomInt(1000, 9999).toString();
@@ -286,16 +307,13 @@ async resendOtp(dto: ResendOtpDto) {
 
   await this.prisma.pendingSignup.update({
     where: { email: dto.email },
-    data: {
-      otp: newOtp,
-      expiresAt: newExpiry,
-    },
+    data: { otp: newOtp, expiresAt: newExpiry },
   });
 
   await sendOtpEmail(dto.email, newOtp);
   console.log(`Resent OTP to ${dto.email}: ${newOtp}`);
 
-  return { message: 'OTP resent successfully 📧' };
+  return { message: 'OTP resent successfully ✅' };
 }
 
 
