@@ -13,8 +13,12 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { MatchingQuizDto } from '../auth/dto/matching-quiz.dto';
 import { MatchService } from '../match/match.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
-import { Gender } from '@prisma/client';
-
+import { SetNameDto } from './dto/set-name.dto';
+import { SetIntentionsDto } from './dto/set-intentions.dto';
+import { SetBirthdayDto } from './dto/set-birthday.dto';
+import { SetGenderDto } from './dto/set-gender.dto';
+import { SetPreferenceDto } from './dto/set-preference.dto';
+import { AddPhotosDto } from './dto/add-photos.dto';
 
 @Controller('user')
 export class UserController {
@@ -23,7 +27,6 @@ export class UserController {
     private matchService: MatchService,
   ) {}
 
-  
   @UseGuards(JwtAuthGuard)
   @Post('quiz')
   async submitQuiz(
@@ -99,7 +102,6 @@ export class UserController {
     return this.userService.addProfilePhoto(userId, photoUrl);
   }
 
- 
   @UseGuards(JwtAuthGuard)
   @Post('upgrade-premium')
   async upgradePremium(@GetUser('id') userId: string) {
@@ -118,40 +120,57 @@ export class UserController {
     return this.userService.boostProfile(userId);
   }
 
-@UseGuards(JwtAuthGuard)
-@Post('set-name')
-async setName(@GetUser('id') userId: string, @Body('fullName') fullName: string) {
-  return this.userService.setName(userId, fullName);
-}
+  @UseGuards(JwtAuthGuard)
+  @Post('set-name')
+  async setName(
+    @GetUser('id') userId: string,
+    @Body() dto: SetNameDto,
+  ) {
+    return this.userService.setName(userId, dto.fullName);
+  }
 
-@UseGuards(JwtAuthGuard)
-@Post('set-intentions')
-async setIntentions(@GetUser('id') userId: string, @Body('intentions') intentions: string[]) {
-  return this.userService.setIntentions(userId, intentions);
-}
+  @UseGuards(JwtAuthGuard)
+  @Post('set-intentions')
+  async setIntentions(
+    @GetUser('id') userId: string,
+    @Body() dto: SetIntentionsDto,
+  ) {
+    return this.userService.setIntentions(userId, dto.intentions);
+  }
 
-@UseGuards(JwtAuthGuard)
-@Post('set-birthday')
-async setBirthday(@GetUser('id') userId: string, @Body('birthday') birthday: string) {
-  return this.userService.setBirthday(userId, birthday);
-}
+  @UseGuards(JwtAuthGuard)
+  @Post('set-birthday')
+  async setBirthday(
+    @GetUser('id') userId: string,
+    @Body() dto: SetBirthdayDto,
+  ) {
+    return this.userService.setBirthday(userId, dto.birthday);
+  }
 
-@UseGuards(JwtAuthGuard)
-@Post('set-gender')
-async setGender(@GetUser('id') userId: string, @Body('gender') gender: Gender) {
-  return this.userService.setGender(userId, gender);
-}
+  @UseGuards(JwtAuthGuard)
+  @Post('set-gender')
+  async setGender(
+    @GetUser('id') userId: string,
+    @Body() dto: SetGenderDto,
+  ) {
+    return this.userService.setGender(userId, dto.gender);
+  }
 
-@UseGuards(JwtAuthGuard)
-@Post('set-preference')
-async setPreference(@GetUser('id') userId: string, @Body('preference') preference: string) {
-  return this.userService.setPreference(userId, preference);
-}
+  @UseGuards(JwtAuthGuard)
+  @Post('set-preference')
+  async setPreference(
+    @GetUser('id') userId: string,
+    @Body() dto: SetPreferenceDto,
+  ) {
+    return this.userService.setPreference(userId, dto.preference);
+  }
 
-@UseGuards(JwtAuthGuard)
-@Post('add-photos')
-async addPhotos(@GetUser('id') userId: string, @Body('photoUrls') photoUrls: string[]) {
-  return this.userService.addPhotos(userId, photoUrls);
-}
-
+  @UseGuards(JwtAuthGuard)
+  @Post('add-photos')
+  async addPhotos(
+    @GetUser('id') userId: string,
+    @Body() dto: AddPhotosDto,
+  ) {
+    return this.userService.addPhotos(userId, dto.photoUrls);
+  }
 }
