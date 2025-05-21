@@ -1,7 +1,7 @@
-import { IsString, MinLength } from 'class-validator';
+import { IsArray, IsString } from 'class-validator';
 
-export class SetNameDto {
-  @IsString()
-  @MinLength(2)
-  fullName: string;
+export class SetIntentionsDto {
+  @IsArray()
+  @IsString({ each: true })
+  intentions: string[];
 }

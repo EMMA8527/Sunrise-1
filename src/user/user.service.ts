@@ -3,8 +3,14 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { PrismaService } from '../../prisma/prisma.service';
 import { MatchingQuizDto } from '../auth/dto/matching-quiz.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
-import { UpdateProfileDto } from './dto/update-profile.dto';
 import { MatchService } from '../match/match.service';
+import { SetNameDto } from './dto/set-name.dto';
+import { SetIntentionsDto } from './dto/set-intentions.dto';
+import { SetBirthdayDto } from './dto/set-birthday.dto';
+import { SetGenderDto } from './dto/set-gender.dto';
+import { SetPreferenceDto } from './dto/set-preference.dto';
+import { AddPhotosDto } from './dto/add-photos.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import * as bcrypt from 'bcryptjs';
 import * as dayjs from 'dayjs';
 import { Gender } from '@prisma/client';
