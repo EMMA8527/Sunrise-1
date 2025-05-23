@@ -32,35 +32,91 @@ export class UserService {
       user: { connect: { id: userId } },
     },
   });
+}async setName(userId: string, fullName: string) {
+  if (!userId || !fullName) {
+    throw new Error('userId and fullName are required');
+  }
+
+  return this.prisma.userProfile.upsert({
+    where: { userId },
+    update: {
+      fullName,
+      profileCompletionStep: 1,
+    },
+    create: {
+      fullName,
+      profileCompletionStep: 1,
+      user: {
+        connect: { id: userId },
+      },
+    },
+  });
 }
+
 
 async setIntentions(userId: string, intentions: string[]) {
-  return this.prisma.userProfile.update({
+  return this.prisma.userProfile.upsert({
     where: { userId },
-    data: { intentions, profileCompletionStep: 2  },
+    update: {
+      intentions,
+      profileCompletionStep: 2,
+    },
+    create: {
+      intentions,
+      profileCompletionStep: 2,
+      user: { connect: { id: userId } },
+    },
   });
 }
+
 
 async setBirthday(userId: string, birthday: string) {
-  return this.prisma.userProfile.update({
+  return this.prisma.userProfile.upsert({
     where: { userId },
-    data: { birthday: new Date(birthday), profileCompletionStep: 3  },
+    update: {
+      birthday: new Date(birthday),
+      profileCompletionStep: 3,
+    },
+    create: {
+      birthday: new Date(birthday),
+      profileCompletionStep: 3,
+      user: { connect: { id: userId } },
+    },
   });
 }
+
 
 async setGender(userId: string, gender: Gender) {
-  return this.prisma.userProfile.update({
+  return this.prisma.userProfile.upsert({
     where: { userId },
-    data: { gender, profileCompletionStep: 4 },
+    update: {
+      gender,
+      profileCompletionStep: 4,
+    },
+    create: {
+      gender,
+      profileCompletionStep: 4,
+      user: { connect: { id: userId } },
+    },
   });
 }
 
+
 async setPreference(userId: string, preference: string) {
-  return this.prisma.userProfile.update({
+  return this.prisma.userProfile.upsert({
     where: { userId },
-    data: { preference, profileCompletionStep: 5 },
+    update: {
+      preference,
+      profileCompletionStep: 5,
+    },
+    create: {
+      preference,
+      profileCompletionStep: 5,
+      user: { connect: { id: userId } },
+    },
   });
 }
+
 
 async addPhotos(userId: string, photoUrls: string[]) {
   if (photoUrls.length < 2) {
@@ -70,6 +126,24 @@ async addPhotos(userId: string, photoUrls: string[]) {
   return this.prisma.userProfile.update({
     where: { userId },
     data: { photos: photoUrls, profileCompletionStep: 6 },
+  });
+}
+async addPhotos(userId: string, photoUrls: string[]) {
+  if (photoUrls.length < 2) {
+    throw new ForbiddenException('Please upload at least two photos');
+  }
+
+  return this.prisma.userProfile.upsert({
+    where: { userId },
+    update: {
+      photos: photoUrls,
+      profileCompletionStep: 6,
+    },
+    create: {
+      photos: photoUrls,
+      profileCompletionStep: 6,
+      user: { connect: { id: userId } },
+    },
   });
 }
 
