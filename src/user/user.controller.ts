@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 import {
   Controller,
   Post,
@@ -120,16 +119,17 @@ export class UserController {
     return this.userService.boostProfile(userId);
   }
 
+  // ✅ Set Name using DTO and consistent guard
+  @UseGuards(JwtAuthGuard)
   @Post('set-name')
-async setName(
-  @GetUser('id') userId: string,
-  @Body() dto: SetNameDto,
-) {
-  console.log('userId:', userId);
-  console.log('fullName:', dto.fullName);
-  return this.userService.setName(userId, dto.fullName);
-}
-
+  async setName(
+    @GetUser('id') userId: string,
+    @Body() dto: SetNameDto,
+  ) {
+    console.log('userId:', userId);
+    console.log('fullName:', dto.fullName);
+    return this.userService.setName(userId, dto.fullName);
+  }
 
   @UseGuards(JwtAuthGuard)
   @Post('set-intentions')
