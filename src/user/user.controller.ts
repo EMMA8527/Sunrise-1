@@ -6,6 +6,7 @@ import {
   UseGuards,
   Get,
   Param,
+  Query,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { GetUser } from '../common/decorators/get-user.decorator';
@@ -19,12 +20,14 @@ import { SetBirthdayDto } from './dto/set-birthday.dto';
 import { SetGenderDto } from './dto/set-gender.dto';
 import { SetPreferenceDto } from './dto/set-preference.dto';
 import { AddPhotosDto } from './dto/add-photos.dto';
+import { AwsS3Service } from 'src/aws/aws-s3.service';
 
 @Controller('user')
 export class UserController {
   constructor(
     private userService: UserService,
     private matchService: MatchService,
+    private readonly awsS3Service: AwsS3Service,
   ) {}
 
   @UseGuards(JwtAuthGuard)
@@ -168,12 +171,30 @@ export class UserController {
     return this.userService.setPreference(userId, dto.preference);
   }
 
+   @UseGuards(JwtAuthGuard)
+  @Get('get-upload-url')
+  async getUploadUrl(
+    @GetUser('id') userId: string,
+    @Query('fileType') fileType: string = 'image/jpeg',
+  ) {
+    const fileName = `${userId}-${Date.now()}.jpg`;
+    const uploadUrl = await this.awsS3Service.getPresignedUrl(fileName, fileType);
+    const key = `profile_photos/${fileName}`;
+
+    return {
+      uploadUrl,
+      key,
+      publicUrl: `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`,
+    };
+  }
+
   @UseGuards(JwtAuthGuard)
   @Post('add-photos')
   async addPhotos(
     @GetUser('id') userId: string,
-    @Body() dto: AddPhotosDto,
+    @Body() dto: AddPhotosDto, // expects `photoUrls: string[]`
   ) {
     return this.userService.addPhotos(userId, dto.photoUrls);
   }
+
 }

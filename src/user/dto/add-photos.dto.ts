@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import { IsArray, IsString } from 'class-validator';
 
 export class AddPhotosDto {

@@ -14,6 +14,7 @@ import { ChatModule } from './chat/chat.module';
 import { TranslateModule } from './translate/translate.module';
 import { NotificationModule } from './notification/notification.module';
 import { SubscriptionModule } from './subscription/subscription.module';
+import { AwsS3Service } from './aws/aws-s3.service';
 
 @Module({
   imports: [AuthModule, UserModule, PrismaModule, MatchModule, NotificationModule, TranslateModule, ChatModule, SubscriptionModule,
@@ -27,7 +28,7 @@ import { SubscriptionModule } from './subscription/subscription.module';
   
   ],
   controllers: [AppController],
-  providers: [AppService, WsAuthMiddleware, GamificationService],
+  providers: [AppService, WsAuthMiddleware, GamificationService, AwsS3Service],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
