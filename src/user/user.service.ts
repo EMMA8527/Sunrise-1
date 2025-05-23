@@ -23,16 +23,6 @@ export class UserService {
   ) {}
 
   async setName(userId: string, fullName: string) {
-  return this.prisma.userProfile.upsert({
-    where: { userId },
-    update: { fullName, profileCompletionStep: 1 },
-    create: {
-      fullName,
-      profileCompletionStep: 1,
-      user: { connect: { id: userId } },
-    },
-  });
-}async setName(userId: string, fullName: string) {
   if (!userId || !fullName) {
     throw new Error('userId and fullName are required');
   }
@@ -68,7 +58,6 @@ async setIntentions(userId: string, intentions: string[]) {
     },
   });
 }
-
 
 async setBirthday(userId: string, birthday: string) {
   return this.prisma.userProfile.upsert({
@@ -117,17 +106,6 @@ async setPreference(userId: string, preference: string) {
   });
 }
 
-
-async addPhotos(userId: string, photoUrls: string[]) {
-  if (photoUrls.length < 2) {
-    throw new ForbiddenException('Please upload at least two photos');
-  }
-
-  return this.prisma.userProfile.update({
-    where: { userId },
-    data: { photos: photoUrls, profileCompletionStep: 6 },
-  });
-}
 async addPhotos(userId: string, photoUrls: string[]) {
   if (photoUrls.length < 2) {
     throw new ForbiddenException('Please upload at least two photos');
@@ -144,6 +122,13 @@ async addPhotos(userId: string, photoUrls: string[]) {
       profileCompletionStep: 6,
       user: { connect: { id: userId } },
     },
+  });
+}
+
+
+  return this.prisma.userProfile.update({
+    where: { userId },
+    data: { photos: photoUrls, profileCompletionStep: 6 },
   });
 }
 
