@@ -1,5 +1,9 @@
 /* eslint-disable prettier/prettier */
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MatchingQuizDto } from '../auth/dto/matching-quiz.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -23,122 +27,89 @@ export class UserService {
   ) {}
 
   async setName(userId: string, fullName: string) {
-  if (!userId || !fullName) {
-    throw new Error('userId and fullName are required');
-  }
+    if (!userId || !fullName) {
+      throw new Error('userId and fullName are required');
+    }
 
-  return this.prisma.userProfile.upsert({
-    where: { userId },
-    update: {
-      fullName,
-      profileCompletionStep: 1,
-    },
-    create: {
-      fullName,
-      profileCompletionStep: 1,
-      user: {
-        connect: { id: userId },
+    return this.prisma.userProfile.upsert({
+      where: { userId },
+      update: { fullName, profileCompletionStep: 1 },
+      create: {
+        fullName,
+        profileCompletionStep: 1,
+        user: { connect: { id: userId } },
       },
-    },
-  });
-}
-
-
-async setIntentions(userId: string, intentions: string[]) {
-  return this.prisma.userProfile.upsert({
-    where: { userId },
-    update: {
-      intentions,
-      profileCompletionStep: 2,
-    },
-    create: {
-      intentions,
-      profileCompletionStep: 2,
-      user: { connect: { id: userId } },
-    },
-  });
-}
-
-async setBirthday(userId: string, birthday: string) {
-  return this.prisma.userProfile.upsert({
-    where: { userId },
-    update: {
-      birthday: new Date(birthday),
-      profileCompletionStep: 3,
-    },
-    create: {
-      birthday: new Date(birthday),
-      profileCompletionStep: 3,
-      user: { connect: { id: userId } },
-    },
-  });
-}
-
-
-async setGender(userId: string, gender: Gender) {
-  return this.prisma.userProfile.upsert({
-    where: { userId },
-    update: {
-      gender,
-      profileCompletionStep: 4,
-    },
-    create: {
-      gender,
-      profileCompletionStep: 4,
-      user: { connect: { id: userId } },
-    },
-  });
-}
-
-
-async setPreference(userId: string, preference: string) {
-  return this.prisma.userProfile.upsert({
-    where: { userId },
-    update: {
-      preference,
-      profileCompletionStep: 5,
-    },
-    create: {
-      preference,
-      profileCompletionStep: 5,
-      user: { connect: { id: userId } },
-    },
-  });
-}
-
-async addPhotos(userId: string, photoUrls: string[]) {
-  if (photoUrls.length < 2) {
-    throw new ForbiddenException('Please upload at least two photos');
+    });
   }
 
-  return this.prisma.userProfile.upsert({
-    where: { userId },
-    update: {
-      photos: photoUrls,
-      profileCompletionStep: 6,
-    },
-    create: {
-      photos: photoUrls,
-      profileCompletionStep: 6,
-      user: { connect: { id: userId } },
-    },
-  });
-}
+  async setIntentions(userId: string, intentions: string[]) {
+    return this.prisma.userProfile.upsert({
+      where: { userId },
+      update: { intentions, profileCompletionStep: 2 },
+      create: {
+        intentions,
+        profileCompletionStep: 2,
+        user: { connect: { id: userId } },
+      },
+    });
+  }
 
+  async setBirthday(userId: string, birthday: string) {
+    return this.prisma.userProfile.upsert({
+      where: { userId },
+      update: { birthday: new Date(birthday), profileCompletionStep: 3 },
+      create: {
+        birthday: new Date(birthday),
+        profileCompletionStep: 3,
+        user: { connect: { id: userId } },
+      },
+    });
+  }
 
-  return this.prisma.userProfile.update({
-    where: { userId },
-    data: { photos: photoUrls, profileCompletionStep: 6 },
-  });
-}
+  async setGender(userId: string, gender: Gender) {
+    return this.prisma.userProfile.upsert({
+      where: { userId },
+      update: { gender, profileCompletionStep: 4 },
+      create: {
+        gender,
+        profileCompletionStep: 4,
+        user: { connect: { id: userId } },
+      },
+    });
+  }
 
+  async setPreference(userId: string, preference: string) {
+    return this.prisma.userProfile.upsert({
+      where: { userId },
+      update: { preference, profileCompletionStep: 5 },
+      create: {
+        preference,
+        profileCompletionStep: 5,
+        user: { connect: { id: userId } },
+      },
+    });
+  }
+
+  async addPhotos(userId: string, photoUrls: string[]) {
+    if (photoUrls.length < 2) {
+      throw new ForbiddenException('Please upload at least two photos');
+    }
+
+    return this.prisma.userProfile.upsert({
+      where: { userId },
+      update: { photos: photoUrls, profileCompletionStep: 6 },
+      create: {
+        photos: photoUrls,
+        profileCompletionStep: 6,
+        user: { connect: { id: userId } },
+      },
+    });
+  }
 
   async submitQuiz(userId: string, dto: MatchingQuizDto) {
     return this.prisma.userProfile.update({
       where: { userId },
-      data: {
-        quizAnswers: dto.quizAnswers,
-      },
+      data: { quizAnswers: dto.quizAnswers },
     });
   }
 
@@ -157,7 +128,7 @@ async addPhotos(userId: string, photoUrls: string[]) {
       select: { targetId: true },
     });
 
-    const excludedIds = interacted.map(i => i.targetId);
+    const excludedIds = interacted.map((i) => i.targetId);
 
     const candidates = await this.prisma.user.findMany({
       where: {
@@ -168,10 +139,13 @@ async addPhotos(userId: string, photoUrls: string[]) {
       take: 20,
     });
 
-    return candidates.map(user => {
+    return candidates.map((user) => {
       const profile = user.userProfile!;
       const age = dayjs().diff(profile.birthday, 'year');
-      const matchScore = this.calculateMatchScore(currentUser.userProfile, profile);
+      const matchScore = this.calculateMatchScore(
+        currentUser.userProfile,
+        profile,
+      );
 
       return {
         id: user.id,
@@ -186,13 +160,20 @@ async addPhotos(userId: string, photoUrls: string[]) {
   calculateMatchScore(current: any, target: any) {
     let score = 0;
 
-    if (current.quizAnswers?.loveLanguage && target.quizAnswers?.loveLanguage &&
-        current.quizAnswers.loveLanguage === target.quizAnswers.loveLanguage) {
+    if (
+      current.quizAnswers?.loveLanguage &&
+      target.quizAnswers?.loveLanguage &&
+      current.quizAnswers.loveLanguage === target.quizAnswers.loveLanguage
+    ) {
       score += 20;
     }
 
-    if (current.quizAnswers?.relationshipStyle && target.quizAnswers?.relationshipStyle &&
-        current.quizAnswers.relationshipStyle === target.quizAnswers.relationshipStyle) {
+    if (
+      current.quizAnswers?.relationshipStyle &&
+      target.quizAnswers?.relationshipStyle &&
+      current.quizAnswers.relationshipStyle ===
+        target.quizAnswers.relationshipStyle
+    ) {
       score += 20;
     }
 
@@ -227,36 +208,40 @@ async addPhotos(userId: string, photoUrls: string[]) {
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {
     const { fullName, birthday, photos, gender, ...rest } = dto;
-  
+
     return this.prisma.userProfile.upsert({
       where: { userId },
       update: {
         fullName,
         birthday: birthday ? new Date(birthday) : undefined,
         photos,
-        gender: gender ? gender as Gender : undefined,
+        gender: gender ? (gender as Gender) : undefined,
         ...rest,
       },
       create: {
         fullName,
         birthday: birthday ? new Date(birthday) : undefined,
         photos,
-        gender: gender ? gender as Gender : undefined,
-        user: {
-          connect: { id: userId },  // 👈 Properly link the relation
-        },
+        gender: gender ? (gender as Gender) : undefined,
+        user: { connect: { id: userId } },
         ...rest,
       },
     });
   }
-  
 
   async changePassword(userId: string, dto: ChangePasswordDto) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user?.password) throw new ForbiddenException('Password not set');
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user?.password) {
+      throw new ForbiddenException('Password not set');
+    }
 
     const isCorrect = await bcrypt.compare(dto.oldPassword, user.password);
-    if (!isCorrect) throw new ForbiddenException('Old password is incorrect');
+    if (!isCorrect) {
+      throw new ForbiddenException('Old password is incorrect');
+    }
 
     const hashed = await bcrypt.hash(dto.newPassword, 10);
 
@@ -273,7 +258,9 @@ async addPhotos(userId: string, photoUrls: string[]) {
       where: { userId },
     });
 
-    if (!profile) throw new NotFoundException('User profile not found');
+    if (!profile) {
+      throw new NotFoundException('User profile not found');
+    }
 
     const updatedPhotos = [...(profile.photos || []), photoUrl];
 
@@ -285,7 +272,6 @@ async addPhotos(userId: string, photoUrls: string[]) {
     return { message: 'Photo added', photos: updatedPhotos };
   }
 
-  
   async upgradeToPremium(userId: string, durationInDays = 30) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
