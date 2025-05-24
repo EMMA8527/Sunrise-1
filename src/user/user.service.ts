@@ -21,91 +21,128 @@ export class UserService {
   ) {}
 
   async setName(userId: string, fullName: string) {
-    if (!userId || !fullName) {
-      throw new Error('userId and fullName are required');
-    }
-
-    return this.prisma.userProfile.upsert({
-      where: { userId },
-      update: { fullName, profileCompletionStep: 1 },
-      create: {
-        fullName,
-        profileCompletionStep: 1,
-        user: { connect: { id: userId } },
-      },
-    });
+  if (!userId || !fullName) {
+    throw new Error('userId and fullName are required');
   }
 
-  async setIntentions(userId: string, intentions: string[]) {
-    return this.prisma.userProfile.upsert({
-      where: { userId },
-      update: { intentions, profileCompletionStep: 2 },
-      create: {
-        intentions,
-        profileCompletionStep: 2,
-        user: { connect: { id: userId } },
-      },
-    });
+  const profile = await this.prisma.userProfile.upsert({
+    where: { userId },
+    update: { fullName, profileCompletionStep: 1 },
+    create: {
+      fullName,
+      profileCompletionStep: 1,
+      user: { connect: { id: userId } },
+    },
+  });
+
+  return {
+    message: 'Name set successfully',
+    data: profile,
+  };
+}
+
+async setIntentions(userId: string, intentions: string[]) {
+  const profile = await this.prisma.userProfile.upsert({
+    where: { userId },
+    update: { intentions, profileCompletionStep: 2 },
+    create: {
+      intentions,
+      profileCompletionStep: 2,
+      user: { connect: { id: userId } },
+    },
+  });
+
+  return {
+    message: 'Intentions set successfully',
+    data: profile,
+  };
+}
+
+async setBirthday(userId: string, birthday: string) {
+  const profile = await this.prisma.userProfile.upsert({
+    where: { userId },
+    update: { birthday: new Date(birthday), profileCompletionStep: 3 },
+    create: {
+      birthday: new Date(birthday),
+      profileCompletionStep: 3,
+      user: { connect: { id: userId } },
+    },
+  });
+
+  return {
+    message: 'Birthday set successfully',
+    data: profile,
+  };
+}
+
+async setGender(userId: string, gender: Gender) {
+  const profile = await this.prisma.userProfile.upsert({
+    where: { userId },
+    update: { gender, profileCompletionStep: 4 },
+    create: {
+      gender,
+      profileCompletionStep: 4,
+      user: { connect: { id: userId } },
+    },
+  });
+
+  return {
+    message: 'Gender set successfully',
+    data: profile,
+  };
+}
+
+async setPreference(userId: string, preference: string) {
+  const profile = await this.prisma.userProfile.upsert({
+    where: { userId },
+    update: { preference, profileCompletionStep: 5 },
+    create: {
+      preference,
+      profileCompletionStep: 5,
+      user: { connect: { id: userId } },
+    },
+  });
+
+  return {
+    message: 'Preference set successfully',
+    data: profile,
+  };
+}
+
+async addPhotos(userId: string, photoUrls: string[]) {
+  if (photoUrls.length < 2) {
+    throw new ForbiddenException('Please upload at least two photos');
   }
 
-  async setBirthday(userId: string, birthday: string) {
-    return this.prisma.userProfile.upsert({
-      where: { userId },
-      update: { birthday: new Date(birthday), profileCompletionStep: 3 },
-      create: {
-        birthday: new Date(birthday),
-        profileCompletionStep: 3,
-        user: { connect: { id: userId } },
-      },
-    });
-  }
+  const profile = await this.prisma.userProfile.upsert({
+    where: { userId },
+    update: { photos: photoUrls, profileCompletionStep: 6 },
+    create: {
+      photos: photoUrls,
+      profileCompletionStep: 6,
+      user: { connect: { id: userId } },
+    },
+  });
 
-  async setGender(userId: string, gender: Gender) {
-    return this.prisma.userProfile.upsert({
-      where: { userId },
-      update: { gender, profileCompletionStep: 4 },
-      create: {
-        gender,
-        profileCompletionStep: 4,
-        user: { connect: { id: userId } },
-      },
-    });
-  }
+  return {
+    message: 'Photos added successfully',
+    data: profile,
+  };
+}
 
-  async setPreference(userId: string, preference: string) {
-    return this.prisma.userProfile.upsert({
-      where: { userId },
-      update: { preference, profileCompletionStep: 5 },
-      create: {
-        preference,
-        profileCompletionStep: 5,
-        user: { connect: { id: userId } },
-      },
-    });
-  }
 
-  async addPhotos(userId: string, photoUrls: string[]) {
-    if (photoUrls.length < 2) {
-      throw new ForbiddenException('Please upload at least two photos');
-    }
+ async submitQuiz(userId: string, dto: MatchingQuizDto) {
+  const profile = await this.prisma.userProfile.update({
+    where: { userId },
+    data: { quizAnswers: dto.quizAnswers },
+  });
 
-    return this.prisma.userProfile.upsert({
-      where: { userId },
-      update: { photos: photoUrls, profileCompletionStep: 6 },
-      create: {
-        photos: photoUrls,
-        profileCompletionStep: 6,
-        user: { connect: { id: userId } },
-      },
-    });
-  }
+  return {
+    message: 'Quiz submitted successfully',
+    data: profile,
+  };
+}
 
-  async submitQuiz(userId: string, dto: MatchingQuizDto) {
-    return this.prisma.userProfile.update({
-      where: { userId },
-      data: { quizAnswers: dto.quizAnswers },
-    });
-  }
 
   async getPotentialMatches(userId: string) {
     const currentUser = await this.prisma.user.findUnique({
@@ -200,28 +237,34 @@ export class UserService {
     };
   }
 
-  async updateProfile(userId: string, dto: UpdateProfileDto) {
-    const { fullName, birthday, photos, gender, ...rest } = dto;
+ async updateProfile(userId: string, dto: UpdateProfileDto) {
+  const { fullName, birthday, photos, gender, ...rest } = dto;
 
-    return this.prisma.userProfile.upsert({
-      where: { userId },
-      update: {
-        fullName,
-        birthday: birthday ? new Date(birthday) : undefined,
-        photos,
-        gender: gender ? (gender as Gender) : undefined,
-        ...rest,
-      },
-      create: {
-        fullName,
-        birthday: birthday ? new Date(birthday) : undefined,
-        photos,
-        gender: gender ? (gender as Gender) : undefined,
-        user: { connect: { id: userId } },
-        ...rest,
-      },
-    });
-  }
+  const profile = await this.prisma.userProfile.upsert({
+    where: { userId },
+    update: {
+      fullName,
+      birthday: birthday ? new Date(birthday) : undefined,
+      photos,
+      gender: gender ? (gender as Gender) : undefined,
+      ...rest,
+    },
+    create: {
+      fullName,
+      birthday: birthday ? new Date(birthday) : undefined,
+      photos,
+      gender: gender ? (gender as Gender) : undefined,
+      user: { connect: { id: userId } },
+      ...rest,
+    },
+  });
+
+  return {
+    message: 'Profile updated successfully',
+    data: profile,
+  };
+}
+
 
   async changePassword(userId: string, dto: ChangePasswordDto) {
     const user = await this.prisma.user.findUnique({
@@ -248,68 +291,80 @@ export class UserService {
   }
 
   async addProfilePhoto(userId: string, photoUrl: string) {
-    const profile = await this.prisma.userProfile.findUnique({
-      where: { userId },
-    });
+  const profile = await this.prisma.userProfile.findUnique({
+    where: { userId },
+  });
 
-    if (!profile) {
-      throw new NotFoundException('User profile not found');
-    }
-
-    const updatedPhotos = [...(profile.photos || []), photoUrl];
-
-    await this.prisma.userProfile.update({
-      where: { userId },
-      data: { photos: updatedPhotos },
-    });
-
-    return { message: 'Photo added', photos: updatedPhotos };
+  if (!profile) {
+    throw new NotFoundException('User profile not found');
   }
+
+  const updatedPhotos = [...(profile.photos || []), photoUrl];
+
+  const updatedProfile = await this.prisma.userProfile.update({
+    where: { userId },
+    data: { photos: updatedPhotos },
+  });
+
+  return {
+    message: 'Photo added successfully',
+    data: updatedProfile,
+  };
+}
 
   async upgradeToPremium(userId: string, durationInDays = 30) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException('User not found');
+  const user = await this.prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new NotFoundException('User not found');
 
-    const now = new Date();
-    const expiry = new Date(now.getTime() + durationInDays * 24 * 60 * 60 * 1000);
+  const now = new Date();
+  const expiry = new Date(now.getTime() + durationInDays * 24 * 60 * 60 * 1000);
 
-    return this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        isPremium: true,
-        premiumSince: now,
-        premiumExpires: expiry,
-      },
-    });
-  }
+  const updated = await this.prisma.user.update({
+    where: { id: userId },
+    data: {
+      isPremium: true,
+      premiumSince: now,
+      premiumExpires: expiry,
+    },
+  });
+
+  return {
+    message: 'Upgraded to premium successfully',
+    data: updated,
+  };
+}
+
 
   async boostProfile(userId: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException('User not found');
+  const user = await this.prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new NotFoundException('User not found');
 
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  const today = new Date().toISOString().split('T')[0];
 
-    if (!user.isPremium) {
-      const boost = await this.prisma.profileBoost.findFirst({
-        where: { userId, date: today },
-      });
-
-      if (boost) {
-        throw new ForbiddenException(
-          'Free boost already used today. Upgrade to premium for unlimited boosts.',
-        );
-      }
-
-      await this.prisma.profileBoost.create({
-        data: { userId, date: today },
-      });
-    }
-
-    await this.prisma.userProfile.update({
-      where: { userId },
-      data: { boostedAt: new Date() },
+  if (!user.isPremium) {
+    const boost = await this.prisma.profileBoost.findFirst({
+      where: { userId, date: today },
     });
 
-    return { message: 'Profile boosted successfully' };
+    if (boost) {
+      throw new ForbiddenException(
+        'Free boost already used today. Upgrade to premium for unlimited boosts.',
+      );
+    }
+
+    await this.prisma.profileBoost.create({
+      data: { userId, date: today },
+    });
   }
+
+  const updated = await this.prisma.userProfile.update({
+    where: { userId },
+    data: { boostedAt: new Date() },
+  });
+
+  return {
+    message: 'Profile boosted successfully',
+    data: updated,
+  };
+}
 }

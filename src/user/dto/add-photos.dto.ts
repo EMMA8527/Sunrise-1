@@ -1,8 +1,9 @@
 /* eslint-disable prettier/prettier */
-import { IsArray, IsString } from 'class-validator';
+import { ArrayMinSize, IsArray, IsString } from 'class-validator';
 
 export class AddPhotosDto {
   @IsArray()
+  @ArrayMinSize(2, { message: 'Please upload at least two photos' })
   @IsString({ each: true })
   photoUrls: string[];
 }

@@ -196,7 +196,7 @@ console.log('Using MXFace URL:', process.env.MXFACE_URL);
 console.log('Using MXFace Key:', process.env.MXFACE_API_KEY?.slice(0,4) + '…');
 
   // 1) Call MXFace
-  const res = await fetch('https://api.mxface.ai/verify', {
+  const res = await fetch('https://faceapi.mxface.ai/api/v3/face/detect', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
