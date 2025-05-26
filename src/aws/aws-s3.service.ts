@@ -23,7 +23,6 @@ export class AwsS3Service {
       Bucket: process.env.AWS_S3_BUCKET,
       Key: `profile_photos/${fileName}`,
       ContentType: contentType,
-      ACL: 'public-read',
     });
     const url = await getSignedUrl(this.s3, command, { expiresIn: 3600 }); // valid for 1 hour
     return url;
