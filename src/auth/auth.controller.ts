@@ -47,9 +47,8 @@ export class AuthController {
   }
 
   @Post('verify-face')
- @UseGuards(JwtAuthGuard)
-verifyFace(@Body() dto: VerifyFaceDto, @GetUser('sub') userId: string)
- {
+  @UseGuards(JwtAuthGuard)
+  verifyFace(@Body() dto: VerifyFaceDto, @GetUser('id') userId: string) {
     return this.authService.verifyFace(dto, userId);
   }
 
