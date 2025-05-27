@@ -194,6 +194,8 @@ export class AuthService {
   if (!user) throw new BadRequestException('User not found');
 console.log('Using MXFace URL:', process.env.MXFACE_URL);
 console.log('Using MXFace Key:', process.env.MXFACE_API_KEY?.slice(0,4) + '…');
+console.log('Verifying user:', userId);
+console.log('Image length:', dto.imageBase64?.length);
 
   // 1) Call MXFace
   const res = await fetch('https://faceapi.mxface.ai/api/v3/face/detect', {
