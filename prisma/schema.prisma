@@ -115,6 +115,7 @@ model MatchInteraction {
 enum MatchAction {
   LIKE
   PASS
+  
 }
 
 model Message {

@@ -8,6 +8,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { MatchingQuizDto } from '../auth/dto/matching-quiz.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { MatchService } from '../match/match.service';
+import { calculateCompatibilityScore } from '../utils/compatibility.util';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import * as bcrypt from 'bcryptjs';
 import * as dayjs from 'dayjs';
@@ -145,37 +146,43 @@ async addPhotos(userId: string, photoUrls: string[]) {
 
 
   async getPotentialMatches(userId: string) {
-    const currentUser = await this.prisma.user.findUnique({
-      where: { id: userId },
-      include: { userProfile: true },
-    });
+  const currentUser = await this.prisma.user.findUnique({
+    where: { id: userId },
+    include: { userProfile: true },
+  });
 
-    if (!currentUser?.userProfile) {
-      throw new NotFoundException('User profile not found');
-    }
+  if (!currentUser?.userProfile) {
+    throw new NotFoundException('User profile not found');
+  }
 
-    const interacted = await this.prisma.matchInteraction.findMany({
-      where: { userId },
-      select: { targetId: true },
-    });
+  // Get all targetIds the user has already interacted with
+  const interacted = await this.prisma.matchInteraction.findMany({
+    where: { userId },
+    select: { targetId: true },
+  });
 
-    const excludedIds = interacted.map((i) => i.targetId);
+  const excludedIds = interacted.map((i) => i.targetId);
 
-    const candidates = await this.prisma.user.findMany({
-      where: {
-        id: { not: userId, notIn: excludedIds },
-        userProfile: { isNot: null },
+  const candidates = await this.prisma.user.findMany({
+    where: {
+      id: { not: userId, notIn: excludedIds },
+      userProfile: {
+        isNot: null,
+        // Optionally filter by gender or intention later
       },
-      include: { userProfile: true },
-      take: 20,
-    });
+    },
+    include: { userProfile: true },
+    take: 50, // Fetch more so we can filter or sort
+  });
 
-    return candidates.map((user) => {
+  const matches = candidates
+    .map((user) => {
       const profile = user.userProfile!;
-      const age = dayjs().diff(profile.birthday, 'year');
-      const matchScore = this.calculateMatchScore(
-        currentUser.userProfile,
-        profile,
+      const age = profile.birthday ? dayjs().diff(profile.birthday, 'year') : null;
+
+      const compatibilityScore = calculateCompatibilityScore(
+        currentUser.userProfile.quizAnswers,
+        profile.quizAnswers,
       );
 
       return {
@@ -183,33 +190,14 @@ async addPhotos(userId: string, photoUrls: string[]) {
         fullName: profile.fullName,
         age,
         photos: profile.photos,
-        compatibilityScore: matchScore,
+        compatibilityScore,
       };
-    });
-  }
+    })
+    .sort((a, b) => b.compatibilityScore - a.compatibilityScore) // 🧠 Smart Matchmaking
+    .slice(0, 20); // Return top 20 suggestions
 
-  calculateMatchScore(current: any, target: any) {
-    let score = 0;
-
-    if (
-      current.quizAnswers?.loveLanguage &&
-      target.quizAnswers?.loveLanguage &&
-      current.quizAnswers.loveLanguage === target.quizAnswers.loveLanguage
-    ) {
-      score += 20;
-    }
-
-    if (
-      current.quizAnswers?.relationshipStyle &&
-      target.quizAnswers?.relationshipStyle &&
-      current.quizAnswers.relationshipStyle ===
-        target.quizAnswers.relationshipStyle
-    ) {
-      score += 20;
-    }
-
-    return score;
-  }
+  return matches;
+}
 
   async findUserById(userId: string) {
     return this.prisma.user.findUnique({
