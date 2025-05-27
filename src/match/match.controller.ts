@@ -22,7 +22,7 @@ import {
       @Body() body: { targetId: string; action: 'LIKE' | 'PASS' },
     ) {
       console.log('req.user:', req.user);
-      const userId = req.user.userId;
+      const userId = req.user.id;
 
       return this.matchService.recordAction(userId, body.targetId, body.action);
     }
