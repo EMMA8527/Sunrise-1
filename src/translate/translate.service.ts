@@ -10,7 +10,7 @@ export class TranslateService {
 
   constructor() {
     this.translate = new v2.Translate({
-      keyFilename: path.join(__dirname, '../../service-account-file.json'), // Path to your service account key
+      keyFilename: path.resolve(__dirname, '../../service-account-file.json'),
     });
   }
 
