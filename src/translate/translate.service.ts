@@ -10,7 +10,7 @@ export class TranslateService {
 
   constructor() {
     this.translate = new v2.Translate({
-      keyFilename: path.resolve(__dirname, '../../service-account-file.json'),
+      keyFilename: path.resolve(process.cwd(), 'service-account-file.json'),
     });
   }
 
