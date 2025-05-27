@@ -31,6 +31,17 @@ export class ChatController {
     const translated = await this.translateService.translateText(text, targetLang);
     return { translated };
   }
+
+  @Post('send')
+async sendMessage(
+  @GetUser('id') senderId: string,
+  @Body('receiverId') receiverId: string,
+  @Body('content') content: string,
+  @Body('translatedContent') translatedContent?: string,
+) {
+  return this.chatService.sendMessage(senderId, receiverId, content, translatedContent);
+}
+
 }
 
 
