@@ -76,6 +76,7 @@ model UserProfile {
   boostedAt      DateTime?
   quizAnswers    Json?
   profileCompletionStep Int @default(0)
+  
 
   user User @relation(fields: [userId], references: [id])
 }

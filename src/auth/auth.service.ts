@@ -68,43 +68,92 @@ export class AuthService {
 
 
   async verifyOtp(dto: VerifyOtpDto) {
-  const pending = await this.prisma.pendingSignup.findUnique({
-    where: { email: dto.email },
-  });
+  // Find pending signup by email
+  const pending = await this.prisma.pendingSignup.findUnique({ where: { email: dto.email } });
 
-  if (!pending) throw new BadRequestException('No signup found for this email');
-  if (pending.otp !== dto.code) throw new ForbiddenException('Invalid OTP');
-  if (pending.expiresAt < new Date()) throw new ForbiddenException('OTP expired');
+  if (!pending) {
+    throw new BadRequestException('No signup found for this email');
+  }
 
-  const existingUser = await this.prisma.user.findUnique({
-    where: { email: dto.email },
-  });
+  // Validate OTP and expiry
+  if (pending.otp !== dto.code) {
+    throw new ForbiddenException('Invalid OTP');
+  }
+  if (pending.expiresAt < new Date()) {
+    throw new ForbiddenException('OTP expired');
+  }
 
+  // Check if user already exists (extra safety)
+  const existingUser = await this.prisma.user.findUnique({ where: { email: dto.email } });
   if (existingUser) {
     if (existingUser.isVerified) {
       throw new BadRequestException('User already verified');
     } else {
-      await this.prisma.user.update({
+      // User exists but not verified, mark verified and return token
+      const updatedUser = await this.prisma.user.update({
         where: { email: dto.email },
         data: { isVerified: true },
+        include: { userProfile: true },
       });
+
+      // Delete pending signup record
       await this.prisma.pendingSignup.delete({ where: { email: dto.email } });
-      return { message: 'Email verified successfully ✅' };
+
+      // Generate JWT token
+      const token = await this.signToken(updatedUser.id, updatedUser.email, updatedUser.role);
+
+      return {
+        accessToken: token,
+        user: {
+          id: updatedUser.id,
+          email: updatedUser.email,
+          name: updatedUser.name,
+          role: updatedUser.role,
+          profileCompletionStep: updatedUser.userProfile?.profileCompletionStep ?? 0,
+          // add other profile fields if needed
+        },
+      };
     }
   }
 
-  await this.prisma.user.create({
+  // Create new user + profile
+  const user = await this.prisma.user.create({
     data: {
       email: pending.email,
       password: pending.hashedPassword,
       country: pending.country,
       isVerified: true,
+      userProfile: {
+        create: {
+          profileCompletionStep: 0,
+          intentions: [],
+          photos: [],
+          // add other default userProfile fields as needed
+        },
+      },
     },
+    include: { userProfile: true },
   });
 
+  // Delete pending signup record
   await this.prisma.pendingSignup.delete({ where: { email: dto.email } });
-  return { message: 'Signup completed. Email verified ✅' };
+
+  // Generate JWT token
+  const token = await this.signToken(user.id, user.email, user.role);
+
+  return {
+    accessToken: token,
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      profileCompletionStep: user.userProfile?.profileCompletionStep ?? 0,
+      // add other profile fields if needed
+    },
+  };
 }
+
 
 
    async submitPhone(phone: string, userId: string) {
@@ -159,8 +208,11 @@ export class AuthService {
   }
   
 
-  async login(dto: LoginDto) {
-  const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
+  async login(dto: LoginDto) { 
+  const user = await this.prisma.user.findUnique({ 
+    where: { email: dto.email },
+    include: { userProfile: true },  // include profile data
+  });
 
   if (!user) {
     const pending = await this.prisma.pendingSignup.findUnique({ where: { email: dto.email } });
@@ -184,6 +236,8 @@ export class AuthService {
       email: user.email,
       name: user.name,
       role: user.role,
+      profileCompletionStep: user.userProfile?.profileCompletionStep ?? 0,
+      // You can add more profile data here if needed
     },
   };
 }
