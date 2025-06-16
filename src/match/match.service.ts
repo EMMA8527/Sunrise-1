@@ -84,19 +84,6 @@ export class MatchService {
   return { message: 'Interaction recorded', match: false };
 }
 
-
-{
-  "page": 1,
-  "limit": 20,
-  "total": 58,
-  "totalPages": 3,
-  "hasNextPage": true,
-  "hasPreviousPage": false,
-  "users": [ ... ]
-}
-
-
-
 async getPeopleWhoLikedMe(userId: string) {
   const user = await this.prisma.user.findUnique({ where: { id: userId } });
 
