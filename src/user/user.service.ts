@@ -207,23 +207,60 @@ async addPhotos(userId: string, photoUrls: string[]) {
   }
 
   async getUserProfile(userId: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      include: { userProfile: true },
-    });
+  const user = await this.prisma.user.findUnique({
+    where: { id: userId },
+    include: { userProfile: true },
+  });
 
-    if (!user) throw new NotFoundException('User not found');
+  if (!user) throw new NotFoundException('User not found');
 
-    return {
-      id: user.id,
-      email: user.email,
-      fullName: user.userProfile?.fullName,
-      photo: user.userProfile?.photos?.[0],
-      streakCount: user.streakCount,
-      lastStreakDate: user.lastStreakDate,
-      isPremium: user.isPremium,
-    };
+  const today = new Date().toISOString().split('T')[0]; // e.g. '2025-06-15'
+  const lastStreak = user.lastStreakDate
+    ? new Date(user.lastStreakDate).toISOString().split('T')[0]
+    : null;
+
+  let canShowStreak: boolean | null;
+
+  if (!lastStreak) {
+    canShowStreak = null; // First time user
+  } else if (lastStreak !== today) {
+    canShowStreak = false; // User hasn’t seen streak today
+  } else {
+    canShowStreak = true; // User already saw today’s streak
   }
+
+  return {
+    id: user.id,
+    email: user.email,
+    fullName: user.userProfile?.fullName,
+    photo: user.userProfile?.photos?.[0],
+    streakCount: user.streakCount,
+    canShowStreak, // replaces lastStreakDate
+    isPremium: user.isPremium,
+  };
+}
+
+async markStreakAsSeen(userId: string) {
+  const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+  if (!user) throw new NotFoundException('User not found');
+
+  const today = new Date().toDateString();
+  const lastSeen = user.lastStreakDate?.toDateString();
+
+  if (lastSeen === today) {
+    return { message: 'Streak already marked as seen today' };
+  }
+
+  await this.prisma.user.update({
+    where: { id: userId },
+    data: { lastStreakDate: new Date() },
+  });
+
+  return { message: 'Streak marked as seen for today' };
+}
+
+
 
  async updateProfile(userId: string, dto: UpdateProfileDto) {
   const { fullName, birthday, photos, gender, ...rest } = dto;
@@ -355,4 +392,22 @@ async addPhotos(userId: string, photoUrls: string[]) {
     data: updated,
   };
 }
+
+async getUserMiniProfile(userId: string) {
+  const user = await this.prisma.user.findUnique({
+    where: { id: userId },
+    include: { userProfile: true },
+  });
+
+  if (!user || !user.userProfile) {
+    throw new NotFoundException('User or user profile not found');
+  }
+
+  return {
+    id: user.id,
+    fullName: user.userProfile.fullName,
+    photo: user.userProfile.photos?.[0] || null,
+  };
+}
+
 }

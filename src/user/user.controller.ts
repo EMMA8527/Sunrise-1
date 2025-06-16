@@ -197,4 +197,17 @@ export class UserController {
     return this.userService.addPhotos(userId, dto.photoUrls);
   }
 
+  @Get(':id/mini-profile')
+async getMiniProfile(@Param('id') id: string) {
+  return this.userService.getUserMiniProfile(id);
+}
+
+@Patch('streak/seen')
+markStreakAsSeen(@Req() req) {
+  const userId = req.user.id;
+  return this.userService.markStreakAsSeen(userId);
+}
+
+
+
 }

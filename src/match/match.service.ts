@@ -85,31 +85,17 @@ export class MatchService {
 }
 
 
-
-  async getMatchedUsers(userId: string) {
-    const matches = await this.prisma.matchInteraction.findMany({
-      where: {
-        userId,
-        isMatch: true,
-      },
-      include: {
-        target: {
-          include: {
-            userProfile: true,
-          },
-        },
-      },
-    });
-  
-    return matches.map(match => ({
-      id: match.target.id,
-      fullName: match.target.userProfile?.fullName,
-      photo: match.target.userProfile?.photos?.[0],
-      age: match.target.userProfile?.birthday
-        ? new Date().getFullYear() - new Date(match.target.userProfile.birthday).getFullYear()
-        : null,
-    }));
+{
+  "page": 1,
+  "limit": 20,
+  "total": 58,
+  "totalPages": 3,
+  "hasNextPage": true,
+  "hasPreviousPage": false,
+  "users": [ ... ]
 }
+
+
 
 async getPeopleWhoLikedMe(userId: string) {
   const user = await this.prisma.user.findUnique({ where: { id: userId } });
