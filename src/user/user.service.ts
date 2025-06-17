@@ -145,7 +145,18 @@ async addPhotos(userId: string, photoUrls: string[]) {
 }
 
 
-  async getPotentialMatches(userId: string) {
+  async getPotentialMatches(
+  userId: string,
+  page: number,
+  filters: {
+    gender?: string;
+    location?: string;
+    minAge?: number;
+    maxAge?: number;
+    sortBy?: 'recent' | 'age-asc' | 'age-desc';
+    limit: number;
+  }
+) {
   const currentUser = await this.prisma.user.findUnique({
     where: { id: userId },
     include: { userProfile: true },
@@ -155,7 +166,6 @@ async addPhotos(userId: string, photoUrls: string[]) {
     throw new NotFoundException('User profile not found');
   }
 
-  // Get all targetIds the user has already interacted with
   const interacted = await this.prisma.matchInteraction.findMany({
     where: { userId },
     select: { targetId: true },
@@ -163,16 +173,45 @@ async addPhotos(userId: string, photoUrls: string[]) {
 
   const excludedIds = interacted.map((i) => i.targetId);
 
-  const candidates = await this.prisma.user.findMany({
-    where: {
-      id: { not: userId, notIn: excludedIds },
-      userProfile: {
-        isNot: null,
-        // Optionally filter by gender or intention later
-      },
+  const where: any = {
+    id: { not: userId, notIn: excludedIds },
+    userProfile: {
+      isNot: null,
     },
+  };
+
+  if (filters.gender) {
+    where.userProfile.gender = filters.gender;
+  }
+
+  if (filters.location) {
+    where.userProfile.location = filters.location;
+  }
+
+  if (filters.minAge || filters.maxAge) {
+    const today = new Date();
+    where.userProfile.birthday = {};
+
+    if (filters.minAge) {
+      const maxBirthDate = new Date(today.getFullYear() - filters.minAge, today.getMonth(), today.getDate());
+      where.userProfile.birthday.lte = maxBirthDate;
+    }
+
+    if (filters.maxAge) {
+      const minBirthDate = new Date(today.getFullYear() - filters.maxAge, today.getMonth(), today.getDate());
+      where.userProfile.birthday.gte = minBirthDate;
+    }
+  }
+
+  const total = await this.prisma.user.count({ where });
+  const totalPages = Math.ceil(total / filters.limit);
+  const skip = (page - 1) * filters.limit;
+
+  const candidates = await this.prisma.user.findMany({
+    where,
     include: { userProfile: true },
-    take: 50, // Fetch more so we can filter or sort
+    skip,
+    take: filters.limit * 2, // buffer for sorting
   });
 
   const matches = candidates
@@ -193,18 +232,18 @@ async addPhotos(userId: string, photoUrls: string[]) {
         compatibilityScore,
       };
     })
-    .sort((a, b) => b.compatibilityScore - a.compatibilityScore) // 🧠 Smart Matchmaking
-    .slice(0, 20); // Return top 20 suggestions
+    .sort((a, b) => b.compatibilityScore - a.compatibilityScore)
+    .slice(0, filters.limit);
 
-  return matches;
+  return {
+    page,
+    limit: filters.limit,
+    total,
+    totalPages,
+    users: matches,
+  };
 }
 
-  async findUserById(userId: string) {
-    return this.prisma.user.findUnique({
-      where: { id: userId },
-      include: { userProfile: true },
-    });
-  }
 
   async getUserProfile(userId: string) {
   const user = await this.prisma.user.findUnique({
