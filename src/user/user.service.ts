@@ -180,12 +180,13 @@ async addPhotos(userId: string, photoUrls: string[]) {
       id: { not: userId, notIn: excludedIds },
       userProfile: {
         isNot: null,
-        gender: filters.gender ? filters.gender : undefined,
+        gender: filters.gender ? (filters.gender as Gender) : undefined,
+
       },
     },
     include: { userProfile: true },
     take: 50,
-  });
+  }) as Array<User & { userProfile: UserProfile | null }>;
 
   const matches = candidates
     .map((user) => {

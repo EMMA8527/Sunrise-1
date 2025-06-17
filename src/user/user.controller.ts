@@ -45,7 +45,7 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @Get('feed')
   async getFeed(@GetUser('id') userId: string) {
-    return this.userService.getPotentialMatches(userId);
+    return this.userService.getPotentialMatches(userId, 1, { limit: 20 });
   }
 
   @UseGuards(JwtAuthGuard)
