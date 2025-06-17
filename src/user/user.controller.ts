@@ -23,6 +23,7 @@ import { SetGenderDto } from './dto/set-gender.dto';
 import { SetPreferenceDto } from './dto/set-preference.dto';
 import { AddPhotosDto } from './dto/add-photos.dto';
 import { AwsS3Service } from 'src/aws/aws-s3.service';
+import {MatchFiltersDto} from './dto/match-filters.dto'
 
 @Controller('user')
 export class UserController {
@@ -211,27 +212,19 @@ markStreakAsSeen(@Req() req) {
 }
 
 @Get('matches')
-getMatches(
-  @Req() req,
-  @Query('page') page = '1',
-  @Query('limit') limit = '20',
-  @Query('gender') gender?: string,
-  @Query('location') location?: string,
-  @Query('minAge') minAge?: string,
-  @Query('maxAge') maxAge?: string,
-  @Query('sortBy') sortBy?: 'recent' | 'age-asc' | 'age-desc',
-) {
+getMatches(@Req() req, @Query() query: MatchFiltersDto) {
   const userId = req.user.id;
 
-  return this.userService.getPotentialMatches(userId, Number(page), {
-    gender,
-    location,
-    minAge: minAge ? Number(minAge) : undefined,
-    maxAge: maxAge ? Number(maxAge) : undefined,
-    sortBy,
-    limit: Number(limit),
+  return this.userService.getPotentialMatches(userId, Number(query.page), {
+    ...query,
+    limit: Number(query.limit),
+    minAge: query.minAge ? Number(query.minAge) : undefined,
+    maxAge: query.maxAge ? Number(query.maxAge) : undefined,
+    lat: query.lat ? Number(query.lat) : undefined,
+    lng: query.lng ? Number(query.lng) : undefined,
   });
 }
+
 
 
 

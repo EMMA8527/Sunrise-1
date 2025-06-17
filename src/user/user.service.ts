@@ -155,7 +155,9 @@ async addPhotos(userId: string, photoUrls: string[]) {
     maxAge?: number;
     sortBy?: 'recent' | 'age-asc' | 'age-desc';
     limit: number;
-  }
+    lat?: number;
+    lng?: number;
+  },
 ) {
   const currentUser = await this.prisma.user.findUnique({
     where: { id: userId },
@@ -173,45 +175,16 @@ async addPhotos(userId: string, photoUrls: string[]) {
 
   const excludedIds = interacted.map((i) => i.targetId);
 
-  const where: any = {
-    id: { not: userId, notIn: excludedIds },
-    userProfile: {
-      isNot: null,
-    },
-  };
-
-  if (filters.gender) {
-    where.userProfile.gender = filters.gender;
-  }
-
-  if (filters.location) {
-    where.userProfile.location = filters.location;
-  }
-
-  if (filters.minAge || filters.maxAge) {
-    const today = new Date();
-    where.userProfile.birthday = {};
-
-    if (filters.minAge) {
-      const maxBirthDate = new Date(today.getFullYear() - filters.minAge, today.getMonth(), today.getDate());
-      where.userProfile.birthday.lte = maxBirthDate;
-    }
-
-    if (filters.maxAge) {
-      const minBirthDate = new Date(today.getFullYear() - filters.maxAge, today.getMonth(), today.getDate());
-      where.userProfile.birthday.gte = minBirthDate;
-    }
-  }
-
-  const total = await this.prisma.user.count({ where });
-  const totalPages = Math.ceil(total / filters.limit);
-  const skip = (page - 1) * filters.limit;
-
   const candidates = await this.prisma.user.findMany({
-    where,
+    where: {
+      id: { not: userId, notIn: excludedIds },
+      userProfile: {
+        isNot: null,
+        gender: filters.gender ? filters.gender : undefined,
+      },
+    },
     include: { userProfile: true },
-    skip,
-    take: filters.limit * 2, // buffer for sorting
+    take: 50,
   });
 
   const matches = candidates
@@ -224,25 +197,45 @@ async addPhotos(userId: string, photoUrls: string[]) {
         profile.quizAnswers,
       );
 
+      let distanceKm: number | null = null;
+      if (
+        filters.lat &&
+        filters.lng &&
+        profile.latitude != null &&
+        profile.longitude != null
+      ) {
+        distanceKm = haversineDistance(
+          filters.lat,
+          filters.lng,
+          profile.latitude,
+          profile.longitude,
+        );
+      }
+
       return {
         id: user.id,
         fullName: profile.fullName,
         age,
         photos: profile.photos,
         compatibilityScore,
+        distanceKm,
       };
     })
-    .sort((a, b) => b.compatibilityScore - a.compatibilityScore)
+    .filter((m) => {
+      if (filters.minAge && m.age !== null && m.age < filters.minAge) return false;
+      if (filters.maxAge && m.age !== null && m.age > filters.maxAge) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      if (filters.sortBy === 'age-asc') return (a.age ?? 0) - (b.age ?? 0);
+      if (filters.sortBy === 'age-desc') return (b.age ?? 0) - (a.age ?? 0);
+      return b.compatibilityScore - a.compatibilityScore;
+    })
     .slice(0, filters.limit);
 
-  return {
-    page,
-    limit: filters.limit,
-    total,
-    totalPages,
-    users: matches,
-  };
+  return matches;
 }
+
 
 
   async getUserProfile(userId: string) {
@@ -448,5 +441,13 @@ async getUserMiniProfile(userId: string) {
     photo: user.userProfile.photos?.[0] || null,
   };
 }
+
+async findUserById(userId: string) {
+  return this.prisma.user.findUnique({
+    where: { id: userId },
+    include: { userProfile: true },
+  });
+}
+
 
 }
