@@ -7,7 +7,7 @@ import {
     Req,
     UseGuards,
     Get,
-    Query
+    
   } from '@nestjs/common';
   import { MatchService } from './match.service';
   import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
