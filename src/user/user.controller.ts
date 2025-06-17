@@ -7,6 +7,8 @@ import {
   Get,
   Param,
   Query,
+  Patch,
+  Req
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { GetUser } from '../common/decorators/get-user.decorator';
@@ -207,6 +209,30 @@ markStreakAsSeen(@Req() req) {
   const userId = req.user.id;
   return this.userService.markStreakAsSeen(userId);
 }
+
+@Get('matches')
+getMatches(
+  @Req() req,
+  @Query('page') page = '1',
+  @Query('limit') limit = '20',
+  @Query('gender') gender?: string,
+  @Query('location') location?: string,
+  @Query('minAge') minAge?: string,
+  @Query('maxAge') maxAge?: string,
+  @Query('sortBy') sortBy?: 'recent' | 'age-asc' | 'age-desc',
+) {
+  const userId = req.user.id;
+
+  return this.userService.getMatchedUsers(userId, Number(page), {
+    gender,
+    location,
+    minAge: minAge ? Number(minAge) : undefined,
+    maxAge: maxAge ? Number(maxAge) : undefined,
+    sortBy,
+    limit: Number(limit),
+  });
+}
+
 
 
 
