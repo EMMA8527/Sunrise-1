@@ -223,7 +223,7 @@ getMatches(
 ) {
   const userId = req.user.id;
 
-  return this.userService.getMatchedUsers(userId, Number(page), {
+  return this.userService.getPotentialMatches(userId, Number(page), {
     gender,
     location,
     minAge: minAge ? Number(minAge) : undefined,
