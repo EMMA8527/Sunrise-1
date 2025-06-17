@@ -12,7 +12,8 @@ import { calculateCompatibilityScore } from '../utils/compatibility.util';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import * as bcrypt from 'bcryptjs';
 import * as dayjs from 'dayjs';
-import { Gender } from '@prisma/client';
+import { Gender, User, UserProfile } from '@prisma/client';
+import { haversineDistance } from '../utils/math';
 
 @Injectable()
 export class UserService {
