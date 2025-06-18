@@ -179,11 +179,9 @@ async addPhotos(userId: string, photoUrls: string[]) {
   const candidates = await this.prisma.user.findMany({
     where: {
       id: { not: userId, notIn: excludedIds },
-      userProfile: {
-        isNot: null,
-        gender: filters.gender ? (filters.gender as Gender) : undefined,
-
-      },
+      userProfile: filters.gender
+  ? { is: { gender: filters.gender as Gender } }
+  : { isNot: null }, 
     },
     include: { userProfile: true },
     take: 50,

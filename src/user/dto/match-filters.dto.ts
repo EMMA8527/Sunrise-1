@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 // src/user/dto/match-filters.dto.ts
 import { IsOptional, IsIn, IsNumberString } from 'class-validator';
 
