@@ -211,6 +211,7 @@ markStreakAsSeen(@Req() req) {
   return this.userService.markStreakAsSeen(userId);
 }
 
+@UseGuards(JwtAuthGuard)
 @Get('matches')
 getMatches(@Req() req, @Query() query: MatchFiltersDto) {
   const userId = req.user.id;
