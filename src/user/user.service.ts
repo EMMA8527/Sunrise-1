@@ -146,7 +146,7 @@ async addPhotos(userId: string, photoUrls: string[]) {
 }
 
 
-  async getPotentialMatches(
+ async getPotentialMatches(
   userId: string,
   page: number,
   filters: {
@@ -173,21 +173,24 @@ async addPhotos(userId: string, photoUrls: string[]) {
     where: { userId },
     select: { targetId: true },
   });
-
   const excludedIds = interacted.map((i) => i.targetId);
 
-  const candidates = await this.prisma.user.findMany({
-    where: {
-      id: { not: userId, notIn: excludedIds },
-      userProfile: filters.gender
-  ? { is: { gender: filters.gender as Gender } }
-  : { isNot: null }, 
-    },
-    include: { userProfile: true },
-    take: 50,
-  }) as Array<User & { userProfile: UserProfile | null }>;
+  const buildCandidates = async (applyFilters = true) => {
+    return await this.prisma.user.findMany({
+      where: {
+        id: { not: userId, notIn: excludedIds },
+        userProfile: applyFilters && filters.gender
+          ? { is: { gender: filters.gender as Gender } }
+          : { isNot: null },
+      },
+      include: { userProfile: true },
+      take: 50,
+    }) as Array<User & { userProfile: UserProfile | null }>;
+  };
 
-  const matches = candidates
+  let candidates = await buildCandidates(true);
+
+  let matches = candidates
     .map((user) => {
       const profile = user.userProfile!;
       const age = profile.birthday ? dayjs().diff(profile.birthday, 'year') : null;
@@ -233,7 +236,57 @@ async addPhotos(userId: string, photoUrls: string[]) {
     })
     .slice(0, filters.limit);
 
-  return matches;
+  // If no matches, fallback to broader pool (no gender, no age filters)
+  if (matches.length === 0) {
+    candidates = await buildCandidates(false);
+
+    matches = candidates
+      .map((user) => {
+        const profile = user.userProfile!;
+        const age = profile.birthday ? dayjs().diff(profile.birthday, 'year') : null;
+
+        const compatibilityScore = calculateCompatibilityScore(
+          currentUser.userProfile.quizAnswers,
+          profile.quizAnswers,
+        );
+
+        let distanceKm: number | null = null;
+        if (
+          filters.lat &&
+          filters.lng &&
+          profile.latitude != null &&
+          profile.longitude != null
+        ) {
+          distanceKm = haversineDistance(
+            filters.lat,
+            filters.lng,
+            profile.latitude,
+            profile.longitude,
+          );
+        }
+
+        return {
+          id: user.id,
+          fullName: profile.fullName,
+          age,
+          photos: profile.photos,
+          compatibilityScore,
+          distanceKm,
+        };
+      })
+      .sort((a, b) => b.compatibilityScore - a.compatibilityScore)
+      .slice(0, filters.limit);
+
+    return {
+      data: matches,
+      fallback: true,
+    };
+  }
+
+  return {
+    data: matches,
+    fallback: false,
+  };
 }
 
 
