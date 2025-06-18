@@ -488,12 +488,17 @@ async getUserMiniProfile(userId: string) {
     throw new NotFoundException('User or user profile not found');
   }
 
+  const profile = user.userProfile;
+
   return {
     id: user.id,
-    fullName: user.userProfile.fullName,
-    photo: user.userProfile.photos?.[0] || null,
+    fullName: profile.fullName || 'Anonymous User',
+    photo: profile.photos?.length > 0
+      ? profile.photos[0]
+      : 'https://media.istockphoto.com/id/1495088043/vector/user-profile-icon-avatar-or-person-icon-profile-picture-portrait-symbol-default-portrait.jpg?s=1024x1024&w=is&k=20&c=oGqYHhfkz_ifeE6-dID6aM7bLz38C6vQTy1YcbgZfx8=', // <-- update to your default avatar CDN or asset
   };
 }
+
 
 async findUserById(userId: string) {
   return this.prisma.user.findUnique({
