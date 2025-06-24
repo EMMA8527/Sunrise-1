@@ -16,9 +16,10 @@ import { NotificationModule } from './notification/notification.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { AwsS3Service } from './aws/aws-s3.service';
 import { WaitlistModule } from './waitlist/waitlist.module';
+import { GamificationModule } from './gamification/gamification.module';
 
 @Module({
-  imports: [AuthModule, UserModule, PrismaModule, MatchModule, NotificationModule, TranslateModule, ChatModule, SubscriptionModule, WaitlistModule,
+  imports: [AuthModule, UserModule, PrismaModule, MatchModule, NotificationModule, TranslateModule, ChatModule, SubscriptionModule, WaitlistModule, GamificationModule
     ConfigModule.forRoot({
       isGlobal: true, // 👈 makes ConfigService available globally
     }),
