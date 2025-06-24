@@ -85,10 +85,17 @@ export class MatchService {
 }
 
 async getPeopleWhoLikedMe(userId: string) {
-  const user = await this.prisma.user.findUnique({ where: { id: userId } });
+  const user = await this.prisma.user.findUnique({
+    where: { id: userId },
+  });
 
-  if (!user.isPremium) {
-    throw new ForbiddenException('Upgrade to premium to see who liked you.');
+  const isSubscribed = user?.isPremium ?? false;
+
+  if (!isSubscribed) {
+    return {
+      isSubscribed: false,
+      users: [],
+    };
   }
 
   const likes = await this.prisma.matchInteraction.findMany({
@@ -102,15 +109,23 @@ async getPeopleWhoLikedMe(userId: string) {
         include: { userProfile: true },
       },
     },
+    orderBy: {
+      createdAt: 'desc', // optional: show most recent likes first
+    },
   });
 
-  return likes.map((like) => ({
+  const users = likes.map((like) => ({
     id: like.user.id,
     fullName: like.user.userProfile?.fullName,
-    photo: like.user.userProfile?.photos?.[0],
+    photo: like.user.userProfile?.photos?.[0] || null,
+    likedAt: like.createdAt,
   }));
-}
 
+  return {
+    isSubscribed: true,
+    users,
+  };
+}
 
 
 }

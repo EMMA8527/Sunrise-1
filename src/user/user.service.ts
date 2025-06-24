@@ -184,108 +184,74 @@ async addPhotos(userId: string, photoUrls: string[]) {
           : { isNot: null },
       },
       include: { userProfile: true },
-      take: 50,
     }) as Array<User & { userProfile: UserProfile | null }>;
   };
 
   let candidates = await buildCandidates(true);
 
-  let matches = candidates
-    .map((user) => {
-      const profile = user.userProfile!;
-      const age = profile.birthday ? dayjs().diff(profile.birthday, 'year') : null;
+  const mapToMatch = (user: User & { userProfile: UserProfile }) => {
+    const profile = user.userProfile!;
+    const age = profile.birthday ? dayjs().diff(profile.birthday, 'year') : null;
 
-      const compatibilityScore = calculateCompatibilityScore(
-        currentUser.userProfile.quizAnswers,
-        profile.quizAnswers,
+    const compatibilityScore = calculateCompatibilityScore(
+      currentUser.userProfile.quizAnswers,
+      profile.quizAnswers,
+    );
+
+    let distanceKm: number | null = null;
+    if (
+      filters.lat &&
+      filters.lng &&
+      profile.latitude != null &&
+      profile.longitude != null
+    ) {
+      distanceKm = haversineDistance(
+        filters.lat,
+        filters.lng,
+        profile.latitude,
+        profile.longitude,
       );
-
-      let distanceKm: number | null = null;
-      if (
-        filters.lat &&
-        filters.lng &&
-        profile.latitude != null &&
-        profile.longitude != null
-      ) {
-        distanceKm = haversineDistance(
-          filters.lat,
-          filters.lng,
-          profile.latitude,
-          profile.longitude,
-        );
-      }
-
-      return {
-        id: user.id,
-        fullName: profile.fullName,
-        age,
-        photos: profile.photos,
-        compatibilityScore,
-        distanceKm,
-      };
-    })
-    .filter((m) => {
-      if (filters.minAge && m.age !== null && m.age < filters.minAge) return false;
-      if (filters.maxAge && m.age !== null && m.age > filters.maxAge) return false;
-      return true;
-    })
-    .sort((a, b) => {
-      if (filters.sortBy === 'age-asc') return (a.age ?? 0) - (b.age ?? 0);
-      if (filters.sortBy === 'age-desc') return (b.age ?? 0) - (a.age ?? 0);
-      return b.compatibilityScore - a.compatibilityScore;
-    })
-    .slice(0, filters.limit);
-
-  // If no matches, fallback to broader pool (no gender, no age filters)
-  if (matches.length === 0) {
-    candidates = await buildCandidates(false);
-
-    matches = candidates
-      .map((user) => {
-        const profile = user.userProfile!;
-        const age = profile.birthday ? dayjs().diff(profile.birthday, 'year') : null;
-
-        const compatibilityScore = calculateCompatibilityScore(
-          currentUser.userProfile.quizAnswers,
-          profile.quizAnswers,
-        );
-
-        let distanceKm: number | null = null;
-        if (
-          filters.lat &&
-          filters.lng &&
-          profile.latitude != null &&
-          profile.longitude != null
-        ) {
-          distanceKm = haversineDistance(
-            filters.lat,
-            filters.lng,
-            profile.latitude,
-            profile.longitude,
-          );
-        }
-
-        return {
-          id: user.id,
-          fullName: profile.fullName,
-          age,
-          photos: profile.photos,
-          compatibilityScore,
-          distanceKm,
-        };
-      })
-      .sort((a, b) => b.compatibilityScore - a.compatibilityScore)
-      .slice(0, filters.limit);
+    }
 
     return {
-      data: matches,
-      fallback: true,
+      id: user.id,
+      fullName: profile.fullName,
+      age,
+      photos: profile.photos,
+      compatibilityScore,
+      distanceKm,
     };
+  };
+
+  const filterAndSort = (list: any[]) => {
+    return list
+      .filter((m) => {
+        if (filters.minAge && m.age !== null && m.age < filters.minAge) return false;
+        if (filters.maxAge && m.age !== null && m.age > filters.maxAge) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        if (filters.sortBy === 'age-asc') return (a.age ?? 0) - (b.age ?? 0);
+        if (filters.sortBy === 'age-desc') return (b.age ?? 0) - (a.age ?? 0);
+        return b.compatibilityScore - a.compatibilityScore;
+      });
+  };
+
+  let transformed = filterAndSort(candidates.map(mapToMatch));
+  const total = transformed.length;
+
+  if (total === 0) {
+    candidates = await buildCandidates(false);
+    transformed = filterAndSort(candidates.map(mapToMatch));
   }
 
+  const paged = transformed.slice((page - 1) * filters.limit, page * filters.limit);
+
   return {
-    data: matches,
-    fallback: false,
+    page,
+    total: transformed.length,
+    data: paged,
+    fallback: total === 0,
   };
 }
 

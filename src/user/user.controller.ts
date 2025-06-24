@@ -24,6 +24,9 @@ import { SetPreferenceDto } from './dto/set-preference.dto';
 import { AddPhotosDto } from './dto/add-photos.dto';
 import { AwsS3Service } from 'src/aws/aws-s3.service';
 import {MatchFiltersDto} from './dto/match-filters.dto'
+import { GamificationService } from '../gamification/gamification.service';
+
+
 
 @Controller('user')
 export class UserController {
@@ -31,6 +34,7 @@ export class UserController {
     private userService: UserService,
     private matchService: MatchService,
     private readonly awsS3Service: AwsS3Service,
+    private readonly gamificationService: GamificationService,
   ) {}
 
   @UseGuards(JwtAuthGuard)
@@ -226,6 +230,13 @@ getMatches(@Req() req, @Query() query: MatchFiltersDto) {
   });
 }
 
+ @UseGuards(JwtAuthGuard)
+  @Patch('streak/update')
+  async updateStreak(@Req() req) {
+    const userId = req.user.id;
+    await this.gamificationService.updateStreak(userId);
+    return { message: 'Streak updated successfully' };
+  }
 
 
 
