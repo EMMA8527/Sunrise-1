@@ -19,7 +19,7 @@ import { WaitlistModule } from './waitlist/waitlist.module';
 import { GamificationModule } from './gamification/gamification.module';
 
 @Module({
-  imports: [AuthModule, UserModule, PrismaModule, MatchModule, NotificationModule, TranslateModule, ChatModule, SubscriptionModule, WaitlistModule, GamificationModule
+  imports: [AuthModule, UserModule, PrismaModule, MatchModule, NotificationModule, TranslateModule, ChatModule, SubscriptionModule, WaitlistModule, GamificationModule,
     ConfigModule.forRoot({
       isGlobal: true, // 👈 makes ConfigService available globally
     }),
