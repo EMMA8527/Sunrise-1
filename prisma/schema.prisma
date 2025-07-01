@@ -42,6 +42,7 @@ model User {
   status       UserStatus   @default(PENDING)
   userProfile     UserProfile?
   role     UserRole @default(USER)
+  firebaseToken String?
 
   sentInteractions     MatchInteraction[] @relation("UserSentInteractions")
   receivedInteractions MatchInteraction[] @relation("UserReceivedInteractions")

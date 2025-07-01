@@ -94,6 +94,13 @@ export class UserController {
     return user;
   }
 
+  @Get('profile/:id')
+async getProfileById(@Param('id') id: string) {
+  const user = await this.userService.getUserProfile(id);
+  return { data: user };
+}
+
+
   @UseGuards(JwtAuthGuard)
   @Post('change-password')
   async changePassword(
@@ -205,9 +212,13 @@ export class UserController {
   }
 
   @Get(':id/mini-profile')
-async getMiniProfile(@Param('id') id: string) {
-  return this.userService.getUserMiniProfile(id);
+async getMiniProfile(
+  @Param('id') id: string,
+  @GetUser('id') viewerId: string, // 🔥 the one viewing this mini profile
+) {
+  return this.userService.getUserMiniProfile(id, viewerId);
 }
+
 
 @Patch('streak/seen')
 markStreakAsSeen(@Req() req) {
@@ -237,6 +248,25 @@ getMatches(@Req() req, @Query() query: MatchFiltersDto) {
     await this.gamificationService.updateStreak(userId);
     return { message: 'Streak updated successfully' };
   }
+
+  @UseGuards(JwtAuthGuard)
+@Patch('update-coordinates')
+async updateCoordinates(
+  @GetUser('id') userId: string,
+  @Body('latitude') lat: number,
+  @Body('longitude') lng: number,
+) {
+  return this.userService.updateCoordinates(userId, lat, lng);
+}
+
+@UseGuards(JwtAuthGuard)
+@Patch('update-firebase-token')
+async updateFirebaseToken(
+  @GetUser('id') userId: string,
+  @Body('token') token: string,
+) {
+  return this.userService.updateFirebaseToken(userId, token);
+}
 
 
 

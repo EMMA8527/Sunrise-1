@@ -231,14 +231,7 @@ export class AuthService {
 
   return {
     accessToken: token,
-    user: {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      profileCompletionStep: user.userProfile?.profileCompletionStep ?? 0,
-      // You can add more profile data here if needed
-    },
+    user,
   };
 }
 

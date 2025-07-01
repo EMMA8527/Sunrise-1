@@ -444,7 +444,7 @@ async markStreakAsSeen(userId: string) {
   };
 }
 
-async getUserMiniProfile(userId: string) {
+async getUserMiniProfile(userId: string, viewerId: string) {
   const user = await this.prisma.user.findUnique({
     where: { id: userId },
     include: { userProfile: true },
@@ -454,14 +454,22 @@ async getUserMiniProfile(userId: string) {
     throw new NotFoundException('User or user profile not found');
   }
 
+  const match = await this.prisma.matchInteraction.findFirst({
+    where: {
+      userId: viewerId,
+      targetId: userId,
+      isMatch: true,
+    },
+  });
+
   const profile = user.userProfile;
 
   return {
     id: user.id,
     fullName: profile.fullName || 'Anonymous User',
-    photo: profile.photos?.length > 0
-      ? profile.photos[0]
-      : 'https://media.istockphoto.com/id/1495088043/vector/user-profile-icon-avatar-or-person-icon-profile-picture-portrait-symbol-default-portrait.jpg?s=1024x1024&w=is&k=20&c=oGqYHhfkz_ifeE6-dID6aM7bLz38C6vQTy1YcbgZfx8=', // <-- update to your default avatar CDN or asset
+    photo: profile.photos?.[0] ||
+      'https://media.istockphoto.com/id/1495088043/vector/user-profile-icon-avatar-or-person-icon-profile-picture-portrait-symbol-default-portrait.jpg?s=1024x1024&w=is&k=20&c=oGqYHhfkz_ifeE6-dID6aM7bLz38C6vQTy1YcbgZfx8=',
+    isMatched: !!match,
   };
 }
 
@@ -471,6 +479,32 @@ async findUserById(userId: string) {
     where: { id: userId },
     include: { userProfile: true },
   });
+}
+
+async updateCoordinates(userId: string, lat: number, lng: number) {
+  const profile = await this.prisma.userProfile.update({
+    where: { userId },
+    data: {
+      latitude: lat,
+      longitude: lng,
+    },
+  });
+
+  return {
+    message: 'Location updated',
+    data: profile,
+  };
+}
+async updateFirebaseToken(userId: string, token: string) {
+  const updated = await this.prisma.user.update({
+    where: { id: userId },
+    data: { firebaseToken: token },
+  });
+
+  return {
+    message: 'Token updated',
+    data: updated,
+  };
 }
 
 
