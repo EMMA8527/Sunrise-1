@@ -16,6 +16,8 @@ import { VerifyResetOtpDto } from './dto/verify-reset-otp.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ResendOtpDto } from './dto/resend-otp.dto';
+import { serializeUser } from '../common/utils/serialize-user'; // adjust path as needed
+
 
 
 @Injectable()
@@ -103,16 +105,10 @@ export class AuthService {
       const token = await this.signToken(updatedUser.id, updatedUser.email, updatedUser.role);
 
       return {
-        accessToken: token,
-        user: {
-          id: updatedUser.id,
-          email: updatedUser.email,
-          name: updatedUser.name,
-          role: updatedUser.role,
-          profileCompletionStep: updatedUser.userProfile?.profileCompletionStep ?? 0,
-          // add other profile fields if needed
-        },
-      };
+  accessToken: token,
+  user: serializeUser(updatedUser),
+};
+
     }
   }
 
@@ -142,16 +138,10 @@ export class AuthService {
   const token = await this.signToken(user.id, user.email, user.role);
 
   return {
-    accessToken: token,
-    user: {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      profileCompletionStep: user.userProfile?.profileCompletionStep ?? 0,
-      // add other profile fields if needed
-    },
-  };
+  accessToken: token,
+  user: serializeUser(user),
+};
+
 }
 
 
@@ -231,7 +221,7 @@ export class AuthService {
 
   return {
     accessToken: token,
-    user,
+    user: serializeUser(user),
   };
 }
 
