@@ -25,6 +25,7 @@ import { AddPhotosDto } from './dto/add-photos.dto';
 import { AwsS3Service } from 'src/aws/aws-s3.service';
 import {MatchFiltersDto} from './dto/match-filters.dto'
 import { GamificationService } from '../gamification/gamification.service';
+import { UpdateBioDto } from './dto/update-bio.dto';
 
 
 
@@ -232,14 +233,17 @@ getMatches(@Req() req, @Query() query: MatchFiltersDto) {
   const userId = req.user.id;
 
   return this.userService.getPotentialMatches(userId, Number(query.page), {
-    ...query,
-    limit: Number(query.limit),
+    gender: query.gender,
+    location: query.location,
+    sortBy: query.sortBy,
+    limit: query.limit ? Number(query.limit) : 20,
     minAge: query.minAge ? Number(query.minAge) : undefined,
     maxAge: query.maxAge ? Number(query.maxAge) : undefined,
     lat: query.lat ? Number(query.lat) : undefined,
     lng: query.lng ? Number(query.lng) : undefined,
   });
 }
+
 
  @UseGuards(JwtAuthGuard)
   @Patch('streak/update')
@@ -268,7 +272,30 @@ async updateFirebaseToken(
   return this.userService.updateFirebaseToken(userId, token);
 }
 
+@UseGuards(JwtAuthGuard)
+@Get('explore')
+searchUsers(
+  @GetUser('id') userId: string,
+  @Query() query: MatchFiltersDto,
+) {
+  return this.userService.searchUsers(userId, Number(query.page), {
+    ...query,
+    limit: Number(query.limit),
+    minAge: query.minAge ? Number(query.minAge) : undefined,
+    maxAge: query.maxAge ? Number(query.maxAge) : undefined,
+    lat: query.lat ? Number(query.lat) : undefined,
+    lng: query.lng ? Number(query.lng) : undefined,
+  });
+}
 
+@UseGuards(JwtAuthGuard)
+@Patch('update-bio')
+async updateBio(
+  @GetUser('id') userId: string,
+  @Body() dto: UpdateBioDto,
+) {
+  return this.userService.updateBio(userId, dto.bio);
+}
 
 
 }

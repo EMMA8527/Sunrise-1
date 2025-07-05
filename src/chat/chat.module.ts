@@ -9,10 +9,11 @@ import { NotificationModule } from 'src/notification/notification.module';
 import { WsAuthMiddleware } from 'src/common/middleware/ws-auth.middleware';
 import { JwtModule } from '@nestjs/jwt'; // 👈 import JwtModule
 import { ConfigModule } from '@nestjs/config';
+import { FirebaseModule } from '../firebase/firebase.module'
 
 
 @Module({
-  imports: [TranslateModule, NotificationModule,   ConfigModule,
+  imports: [TranslateModule, NotificationModule,   ConfigModule, FirebaseModule,
     JwtModule.register({}), ], // ✅ move it here
   providers: [ChatService, ChatGateway, PrismaService, WsAuthMiddleware],
   controllers: [ChatController],

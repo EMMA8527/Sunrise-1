@@ -12,8 +12,9 @@ import { calculateCompatibilityScore } from '../utils/compatibility.util';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import * as bcrypt from 'bcryptjs';
 import * as dayjs from 'dayjs';
-import { Gender, User, UserProfile } from '@prisma/client';
+import { Gender } from '@prisma/client';
 import { haversineDistance } from '../utils/math';
+import { ParsedMatchFilters } from './dto/match-filters.dto';
 
 @Injectable()
 export class UserService {
@@ -149,16 +150,7 @@ async addPhotos(userId: string, photoUrls: string[]) {
  async getPotentialMatches(
   userId: string,
   page: number,
-  filters: {
-    gender?: string;
-    location?: string;
-    minAge?: number;
-    maxAge?: number;
-    sortBy?: 'recent' | 'age-asc' | 'age-desc';
-    limit: number;
-    lat?: number;
-    lng?: number;
-  },
+  filters: ParsedMatchFilters,
 ) {
   const currentUser = await this.prisma.user.findUnique({
     where: { id: userId },
@@ -175,74 +167,56 @@ async addPhotos(userId: string, photoUrls: string[]) {
   });
   const excludedIds = interacted.map((i) => i.targetId);
 
-  const buildCandidates = async (applyFilters = true) => {
-    return await this.prisma.user.findMany({
+  // STEP 1: Quiz-based matches
+  let candidates = await this.prisma.user.findMany({
+    where: {
+      id: { not: userId, notIn: excludedIds },
+      status: 'ACTIVE',
+      userProfile: { isNot: null },
+    },
+    include: { userProfile: true },
+  });
+
+  let transformed = candidates
+    .map((user) => {
+      const profile = user.userProfile!;
+      const compatibilityScore = calculateCompatibilityScore(
+        currentUser.userProfile.quizAnswers,
+        profile.quizAnswers,
+      );
+
+      return {
+        id: user.id,
+        fullName: profile.fullName,
+        photos: profile.photos,
+        compatibilityScore,
+      };
+    })
+    .filter((m) => m.compatibilityScore > 0)
+    .sort((a, b) => b.compatibilityScore - a.compatibilityScore);
+
+  const fallback = transformed.length === 0;
+
+  // STEP 2: Fallback to generic matches
+  if (fallback) {
+    candidates = await this.prisma.user.findMany({
       where: {
         id: { not: userId, notIn: excludedIds },
-        userProfile: applyFilters && filters.gender
-          ? { is: { gender: filters.gender as Gender } }
-          : { isNot: null },
+        status: 'ACTIVE',
+        userProfile: { isNot: null },
       },
       include: { userProfile: true },
-    }) as Array<User & { userProfile: UserProfile | null }>;
-  };
+    });
 
-  let candidates = await buildCandidates(true);
-
-  const mapToMatch = (user: User & { userProfile: UserProfile }) => {
-    const profile = user.userProfile!;
-    const age = profile.birthday ? dayjs().diff(profile.birthday, 'year') : null;
-
-    const compatibilityScore = calculateCompatibilityScore(
-      currentUser.userProfile.quizAnswers,
-      profile.quizAnswers,
-    );
-
-    let distanceKm: number | null = null;
-    if (
-      filters.lat &&
-      filters.lng &&
-      profile.latitude != null &&
-      profile.longitude != null
-    ) {
-      distanceKm = haversineDistance(
-        filters.lat,
-        filters.lng,
-        profile.latitude,
-        profile.longitude,
-      );
-    }
-
-    return {
-      id: user.id,
-      fullName: profile.fullName,
-      age,
-      photos: profile.photos,
-      compatibilityScore,
-      distanceKm,
-    };
-  };
-
-  const filterAndSort = (list: any[]) => {
-    return list
-      .filter((m) => {
-        if (filters.minAge && m.age !== null && m.age < filters.minAge) return false;
-        if (filters.maxAge && m.age !== null && m.age > filters.maxAge) return false;
-        return true;
-      })
-      .sort((a, b) => {
-        if (filters.sortBy === 'age-asc') return (a.age ?? 0) - (b.age ?? 0);
-        if (filters.sortBy === 'age-desc') return (b.age ?? 0) - (a.age ?? 0);
-        return b.compatibilityScore - a.compatibilityScore;
-      });
-  };
-
-  let transformed = filterAndSort(candidates.map(mapToMatch));
-  const total = transformed.length;
-
-  if (total === 0) {
-    candidates = await buildCandidates(false);
-    transformed = filterAndSort(candidates.map(mapToMatch));
+    transformed = candidates.map((user) => {
+      const profile = user.userProfile!;
+      return {
+        id: user.id,
+        fullName: profile.fullName,
+        photos: profile.photos,
+        compatibilityScore: 0,
+      };
+    });
   }
 
   const paged = transformed.slice((page - 1) * filters.limit, page * filters.limit);
@@ -251,10 +225,9 @@ async addPhotos(userId: string, photoUrls: string[]) {
     page,
     total: transformed.length,
     data: paged,
-    fallback: total === 0,
+    fallback,
   };
 }
-
 
 
   async getUserProfile(userId: string) {
@@ -283,11 +256,39 @@ async addPhotos(userId: string, photoUrls: string[]) {
   return {
     id: user.id,
     email: user.email,
-    fullName: user.userProfile?.fullName,
-    photo: user.userProfile?.photos?.[0],
-    streakCount: user.streakCount,
-    canShowStreak, // replaces lastStreakDate
+    phone: user.phone,
+    role: user.role,
+    provider: user.provider,
+    name: user.name,
+    country: user.country,
+    status: user.status,
+    isVerified: user.isVerified,
+    isPhoneVerified: user.isPhoneVerified,
+    isFaceVerified: user.isFaceVerified,
     isPremium: user.isPremium,
+    premiumSince: user.premiumSince,
+    premiumExpires: user.premiumExpires,
+    streakCount: user.streakCount,
+    canShowStreak,
+    firebaseToken: user.firebaseToken,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+
+    profile: {
+      fullName: user.userProfile?.fullName,
+      intentions: user.userProfile?.intentions || [],
+      birthday: user.userProfile?.birthday,
+      gender: user.userProfile?.gender,
+      preference: user.userProfile?.preference,
+      photos: user.userProfile?.photos || [],
+      profileCompletionStep: user.userProfile?.profileCompletionStep ?? 0,
+      quizAnswers: user.userProfile?.quizAnswers,
+      boostedAt: user.userProfile?.boostedAt,
+      location: {
+        latitude: user.userProfile?.latitude,
+        longitude: user.userProfile?.longitude,
+      },
+    },
   };
 }
 
@@ -507,5 +508,130 @@ async updateFirebaseToken(userId: string, token: string) {
   };
 }
 
+async searchUsers(
+  userId: string,
+  page: number,
+  filters: {
+    gender?: string;
+    location?: string;
+    minAge?: number;
+    maxAge?: number;
+    sortBy?: 'recent' | 'age-asc' | 'age-desc';
+    limit: number;
+    lat?: number;
+    lng?: number;
+  },
+) {
+  const currentUser = await this.prisma.user.findUnique({
+    where: { id: userId },
+    include: { userProfile: true },
+  });
+
+  if (!currentUser?.userProfile) {
+    throw new Error('User profile not found');
+  }
+
+  // ✅ Exclude users the current user has already interacted with (like or pass)
+  const previousInteractions = await this.prisma.matchInteraction.findMany({
+    where: { userId },
+    select: { targetId: true },
+  });
+  const excludedIds = previousInteractions.map((i) => i.targetId);
+
+  // ✅ Build raw candidate query
+  const candidates = await this.prisma.user.findMany({
+    where: {
+      id: {
+        not: userId,
+        notIn: excludedIds,
+      },
+      status: 'ACTIVE',
+      userProfile: {
+        is: {
+          gender: filters.gender ? (filters.gender as Gender) : undefined,
+        },
+      },
+    },
+    include: {
+      userProfile: true,
+    },
+  });
+
+  // ✅ Transform to match DTO with age, distance, score
+  const result = candidates.map((user) => {
+    const profile = user.userProfile!;
+    const age = profile.birthday ? dayjs().diff(profile.birthday, 'year') : null;
+
+    // Compatibility score
+    const compatibilityScore = calculateCompatibilityScore(
+      currentUser.userProfile?.quizAnswers,
+      profile.quizAnswers,
+    );
+
+    // Distance (if coords available)
+    let distanceKm: number | null = null;
+    if (
+      filters.lat &&
+      filters.lng &&
+      profile.latitude != null &&
+      profile.longitude != null
+    ) {
+      distanceKm = haversineDistance(
+        filters.lat,
+        filters.lng,
+        profile.latitude,
+        profile.longitude,
+      );
+    }
+
+    return {
+      id: user.id,
+      fullName: profile.fullName,
+      photos: profile.photos,
+      age,
+      compatibilityScore,
+      distanceKm,
+    };
+  });
+
+  // ✅ Apply age & sorting filters
+  const filtered = result
+    .filter((u) => {
+      if (filters.minAge && u.age && u.age < filters.minAge) return false;
+      if (filters.maxAge && u.age && u.age > filters.maxAge) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      if (filters.sortBy === 'age-asc') return (a.age ?? 0) - (b.age ?? 0);
+      if (filters.sortBy === 'age-desc') return (b.age ?? 0) - (a.age ?? 0);
+      return b.compatibilityScore - a.compatibilityScore;
+    });
+
+  const total = filtered.length;
+
+  // ✅ Paginate result
+  const paged = filtered.slice((page - 1) * filters.limit, page * filters.limit);
+
+  return {
+    page,
+    total,
+    data: paged,
+  };
+}
+
+async updateBio(userId: string, bio: string) {
+  const user = await this.prisma.user.findUnique({
+    where: { id: userId },
+  });
+
+  if (!user) throw new NotFoundException('User not found');
+
+  await this.prisma.userProfile.update({
+    where: { userId },
+    data: { bio },
+  });
+
+  return { message: 'Bio updated successfully' };
+}
 
 }

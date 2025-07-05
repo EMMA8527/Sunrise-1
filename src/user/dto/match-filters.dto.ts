@@ -37,3 +37,15 @@ export class MatchFiltersDto {
   @IsNumberString()
   lng?: string;
 }
+
+// Parsed version (for backend logic)
+export type ParsedMatchFilters = {
+  gender?: string;
+  location?: string;
+  minAge?: number;
+  maxAge?: number;
+  sortBy?: 'recent' | 'age-asc' | 'age-desc';
+  limit: number;
+  lat?: number;
+  lng?: number;
+};

@@ -19,5 +19,8 @@ import {
     sendNotification(userId: string, data: any) {
       this.server.to(userId).emit('notification', data);
     }
+
+    
   }
+
   

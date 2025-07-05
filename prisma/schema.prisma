@@ -79,6 +79,7 @@ model UserProfile {
   profileCompletionStep Int @default(0)
   latitude  Float?
   longitude Float?
+  bio            String?
   
 
   user User @relation(fields: [userId], references: [id])

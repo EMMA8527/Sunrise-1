@@ -5,6 +5,7 @@ import { ChatService } from './chat.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { GetUser } from 'src/common/decorators/get-user.decorator';
 import { TranslateService } from 'src/translate/translate.service';
+import { NotifyDto } from './dto/notify.dto';
 
 @Controller('chat')
 @UseGuards(JwtAuthGuard)
@@ -42,6 +43,12 @@ async sendMessage(
   return this.chatService.sendMessage(senderId, receiverId, content, translatedContent);
 }
 
+ @UseGuards(JwtAuthGuard)
+  @Post('notify')
+  async notifyUser(@Body() dto: NotifyDto) {
+    const { receiverId, senderName, messageText } = dto;
+    return this.chatService.notifyUserOnNewMessage(receiverId, senderName, messageText);
+  }
 }
 
 

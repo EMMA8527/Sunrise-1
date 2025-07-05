@@ -98,11 +98,11 @@ async getPeopleWhoLikedMe(userId: string) {
     };
   }
 
+  // Find all users who liked me (including matches)
   const likes = await this.prisma.matchInteraction.findMany({
     where: {
       targetId: userId,
       action: 'LIKE',
-      isMatch: false,
     },
     include: {
       user: {
@@ -110,7 +110,7 @@ async getPeopleWhoLikedMe(userId: string) {
       },
     },
     orderBy: {
-      createdAt: 'desc', // optional: show most recent likes first
+      createdAt: 'desc',
     },
   });
 
@@ -118,6 +118,7 @@ async getPeopleWhoLikedMe(userId: string) {
     id: like.user.id,
     fullName: like.user.userProfile?.fullName,
     photo: like.user.userProfile?.photos?.[0] || null,
+    isMatch: like.isMatch,
     likedAt: like.createdAt,
   }));
 
