@@ -161,14 +161,12 @@ async addPhotos(userId: string, photoUrls: string[]) {
     throw new NotFoundException('User profile not found');
   }
 
-  // Get list of already interacted users
   const interacted = await this.prisma.matchInteraction.findMany({
     where: { userId },
     select: { targetId: true },
   });
   const excludedIds = interacted.map((i) => i.targetId);
 
-  // Get all possible candidates the user hasn't interacted with
   const candidates = await this.prisma.user.findMany({
     where: {
       id: { not: userId, notIn: excludedIds },
@@ -178,7 +176,6 @@ async addPhotos(userId: string, photoUrls: string[]) {
     include: { userProfile: true },
   });
 
-  // Rank them using compatibility score
   const transformed = candidates.map((user) => {
     const profile = user.userProfile!;
     const score = calculateCompatibilityScore(
@@ -194,22 +191,21 @@ async addPhotos(userId: string, photoUrls: string[]) {
     };
   });
 
-  // Sort: Highest score to lowest
   const sorted = transformed.sort((a, b) => b.compatibilityScore - a.compatibilityScore);
 
-  // Paginate
-  const paged = sorted.slice(
-    (page - 1) * filters.limit,
-    page * filters.limit,
-  );
+  // Safe pagination
+  const safePage = Math.max(1, page || 1);
+  const safeLimit = Math.min(Math.max(filters?.limit || 10, 1), 100);
+  const paged = sorted.slice((safePage - 1) * safeLimit, safePage * safeLimit);
 
   return {
-    page,
+    page: safePage,
     total: sorted.length,
     data: paged,
     fallbackUsed: false,
   };
 }
+
 
 
 
