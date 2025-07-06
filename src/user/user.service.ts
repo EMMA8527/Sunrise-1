@@ -161,14 +161,15 @@ async addPhotos(userId: string, photoUrls: string[]) {
     throw new NotFoundException('User profile not found');
   }
 
+  // Get list of already interacted users
   const interacted = await this.prisma.matchInteraction.findMany({
     where: { userId },
     select: { targetId: true },
   });
   const excludedIds = interacted.map((i) => i.targetId);
 
-  // STEP 1: Quiz-based matches
-  let candidates = await this.prisma.user.findMany({
+  // Get all possible candidates the user hasn't interacted with
+  const candidates = await this.prisma.user.findMany({
     where: {
       id: { not: userId, notIn: excludedIds },
       status: 'ACTIVE',
@@ -177,57 +178,39 @@ async addPhotos(userId: string, photoUrls: string[]) {
     include: { userProfile: true },
   });
 
-  let transformed = candidates
-    .map((user) => {
-      const profile = user.userProfile!;
-      const compatibilityScore = calculateCompatibilityScore(
-        currentUser.userProfile.quizAnswers,
-        profile.quizAnswers,
-      );
+  // Rank them using compatibility score
+  const transformed = candidates.map((user) => {
+    const profile = user.userProfile!;
+    const score = calculateCompatibilityScore(
+      currentUser.userProfile.quizAnswers,
+      profile.quizAnswers,
+    ) || 0;
 
-      return {
-        id: user.id,
-        fullName: profile.fullName,
-        photos: profile.photos,
-        compatibilityScore,
-      };
-    })
-    .filter((m) => m.compatibilityScore > 0)
-    .sort((a, b) => b.compatibilityScore - a.compatibilityScore);
+    return {
+      id: user.id,
+      fullName: profile.fullName,
+      photos: profile.photos,
+      compatibilityScore: score,
+    };
+  });
 
-  const fallback = transformed.length === 0;
+  // Sort: Highest score to lowest
+  const sorted = transformed.sort((a, b) => b.compatibilityScore - a.compatibilityScore);
 
-  // STEP 2: Fallback to generic matches
-  if (fallback) {
-    candidates = await this.prisma.user.findMany({
-      where: {
-        id: { not: userId, notIn: excludedIds },
-        status: 'ACTIVE',
-        userProfile: { isNot: null },
-      },
-      include: { userProfile: true },
-    });
-
-    transformed = candidates.map((user) => {
-      const profile = user.userProfile!;
-      return {
-        id: user.id,
-        fullName: profile.fullName,
-        photos: profile.photos,
-        compatibilityScore: 0,
-      };
-    });
-  }
-
-  const paged = transformed.slice((page - 1) * filters.limit, page * filters.limit);
+  // Paginate
+  const paged = sorted.slice(
+    (page - 1) * filters.limit,
+    page * filters.limit,
+  );
 
   return {
     page,
-    total: transformed.length,
+    total: sorted.length,
     data: paged,
-    fallback,
+    fallbackUsed: false,
   };
 }
+
 
 
   async getUserProfile(userId: string) {
