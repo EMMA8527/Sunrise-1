@@ -212,7 +212,7 @@ async addPhotos(userId: string, photoUrls: string[]) {
 if (paged.length > 0) {
   return {
     page: safePage,
-    total: sorted.length,
+    total: matchedCandidates.length,
     data: paged,
     fallbackUsed: false,
   };
