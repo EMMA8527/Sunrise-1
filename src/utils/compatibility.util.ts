@@ -1,24 +1,27 @@
 /* eslint-disable prettier/prettier */
-// src/utils/compatibility.util.ts
-
-export function calculateCompatibilityScore(quizA: any, quizB: any): number {
+export function calculateCompatibilityScore(
+  quizA: Record<string, string[]>,
+  quizB: Record<string, string[]>,
+): number {
   if (!quizA || !quizB) return 0;
 
   let total = 0;
   let matches = 0;
 
-  const keysToCheck = Object.keys(quizA);
+  for (const key in quizA) {
+    const answersA = quizA[key];
+    const answersB = quizB[key];
 
-  for (const key of keysToCheck) {
-    const aVal = quizA[key]?.toLowerCase() || '';
-    const bVal = quizB[key]?.toLowerCase() || '';
+    if (Array.isArray(answersA) && Array.isArray(answersB)) {
+      total++;
 
-    total++;
+      const normalizedA = answersA.map((a) => a.toLowerCase().trim());
+      const normalizedB = answersB.map((b) => b.toLowerCase().trim());
 
-    if (aVal && bVal && (aVal.includes(bVal) || bVal.includes(aVal))) {
-      matches++;
+      const common = normalizedA.filter((a) => normalizedB.includes(a));
+      if (common.length > 0) matches++;
     }
   }
 
-  return Math.floor((matches / total) * 100); // e.g. 80%
+  return total === 0 ? 0 : Math.floor((matches / total) * 100);
 }
