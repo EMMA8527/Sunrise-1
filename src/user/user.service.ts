@@ -208,32 +208,40 @@ async addPhotos(userId: string, photoUrls: string[]) {
     safePage * safeLimit,
   );
 
-  if (paged.length > 0) {
-    return {
-      page: safePage,
-      total: matchedCandidates.length,
-      data: paged,
-      fallbackUsed: false,
-    };
-  }
-
-  // 👇 Fallback if no one matched or all score checks failed
-  const fallbackData = candidates.map((user) => ({
-    id: user.id,
-    fullName: user.userProfile?.fullName,
-    photos: user.userProfile?.photos || [],
-    compatibilityScore: 0,
-  }));
-
+  // Default pagination logic
+if (paged.length > 0) {
   return {
     page: safePage,
-    total: fallbackData.length,
-    data: fallbackData.slice(
-      (safePage - 1) * safeLimit,
-      safePage * safeLimit,
-    ),
-    fallbackUsed: true,
+    total: sorted.length,
+    data: paged,
+    fallbackUsed: false,
   };
+}
+
+// Fallback logic
+const fallbackCandidates = await this.prisma.user.findMany({
+  where: {
+    id: { not: userId, notIn: excludedIds },
+    status: 'ACTIVE',
+    userProfile: { isNot: null },
+  },
+  include: { userProfile: true },
+});
+
+const fallbackData = fallbackCandidates.map((user) => ({
+  id: user.id,
+  fullName: user.userProfile?.fullName,
+  photos: user.userProfile?.photos || [],
+  compatibilityScore: 0,
+}));
+
+return {
+  page: safePage,
+  total: fallbackData.length,
+  data: fallbackData.slice((safePage - 1) * safeLimit, safePage * safeLimit),
+  fallbackUsed: true,
+};
+
 }
 
 

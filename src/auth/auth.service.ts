@@ -94,7 +94,7 @@ export class AuthService {
       // User exists but not verified, mark verified and return token
       const updatedUser = await this.prisma.user.update({
         where: { email: dto.email },
-        data: { isVerified: true },
+        data: { isVerified: true,  status: 'ACTIVE',},
         include: { userProfile: true },
       });
 
@@ -119,6 +119,7 @@ export class AuthService {
       password: pending.hashedPassword,
       country: pending.country,
       isVerified: true,
+       status: 'ACTIVE',
       userProfile: {
         create: {
           profileCompletionStep: 0,
