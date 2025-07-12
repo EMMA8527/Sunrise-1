@@ -165,6 +165,7 @@ async addPhotos(userId: string, photoUrls: string[]) {
     where: { userId },
     select: { targetId: true },
   });
+
   const excludedIds = interacted.map((i) => i.targetId);
 
   const candidates = await this.prisma.user.findMany({
@@ -176,33 +177,62 @@ async addPhotos(userId: string, photoUrls: string[]) {
     include: { userProfile: true },
   });
 
-  const transformed = candidates.map((user) => {
-    const profile = user.userProfile!;
-    const score = calculateCompatibilityScore(
-      currentUser.userProfile.quizAnswers,
-      profile.quizAnswers,
-    ) || 0;
-
-    return {
-      id: user.id,
-      fullName: profile.fullName,
-      photos: profile.photos,
-      compatibilityScore: score,
-    };
-  });
-
-  const sorted = transformed.sort((a, b) => b.compatibilityScore - a.compatibilityScore);
-
-  // Safe pagination
   const safePage = Math.max(1, page || 1);
   const safeLimit = Math.min(Math.max(filters?.limit || 10, 1), 100);
-  const paged = sorted.slice((safePage - 1) * safeLimit, safePage * safeLimit);
+
+  const matchedCandidates = candidates
+    .filter(
+      (user) =>
+        user.userProfile?.quizAnswers &&
+        currentUser.userProfile?.quizAnswers,
+    )
+    .map((user) => {
+      const profile = user.userProfile!;
+      const score =
+        calculateCompatibilityScore(
+          currentUser.userProfile.quizAnswers,
+          profile.quizAnswers,
+        ) || 0;
+
+      return {
+        id: user.id,
+        fullName: profile.fullName,
+        photos: profile.photos,
+        compatibilityScore: score,
+      };
+    })
+    .sort((a, b) => b.compatibilityScore - a.compatibilityScore);
+
+  const paged = matchedCandidates.slice(
+    (safePage - 1) * safeLimit,
+    safePage * safeLimit,
+  );
+
+  if (paged.length > 0) {
+    return {
+      page: safePage,
+      total: matchedCandidates.length,
+      data: paged,
+      fallbackUsed: false,
+    };
+  }
+
+  // 👇 Fallback if no one matched or all score checks failed
+  const fallbackData = candidates.map((user) => ({
+    id: user.id,
+    fullName: user.userProfile?.fullName,
+    photos: user.userProfile?.photos || [],
+    compatibilityScore: 0,
+  }));
 
   return {
     page: safePage,
-    total: sorted.length,
-    data: paged,
-    fallbackUsed: false,
+    total: fallbackData.length,
+    data: fallbackData.slice(
+      (safePage - 1) * safeLimit,
+      safePage * safeLimit,
+    ),
+    fallbackUsed: true,
   };
 }
 
@@ -277,11 +307,12 @@ async markStreakAsSeen(userId: string) {
   if (!user) throw new NotFoundException('User not found');
 
   const today = new Date().toDateString();
-  const lastSeen = user.lastStreakDate?.toDateString();
+const lastSeen = user.lastStreakDate?.toDateString();
 
-  if (lastSeen === today) {
-    return { message: 'Streak already marked as seen today' };
-  }
+if (lastSeen && lastSeen === today) {
+  return { message: 'Streak already marked as seen today' };
+}
+
 
   await this.prisma.user.update({
     where: { id: userId },
