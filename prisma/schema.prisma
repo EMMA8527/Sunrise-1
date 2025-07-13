@@ -80,6 +80,7 @@ model UserProfile {
   latitude  Float?
   longitude Float?
   bio            String?
+   location                String?
   
 
   user User @relation(fields: [userId], references: [id])

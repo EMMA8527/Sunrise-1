@@ -8,12 +8,11 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { MatchingQuizDto } from '../auth/dto/matching-quiz.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { MatchService } from '../match/match.service';
-import { calculateCompatibilityScore } from '../utils/compatibility.util';
+import { calculateCompatibilityScore, calculateDistanceKm } from '../utils/compatibility.util';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import * as bcrypt from 'bcryptjs';
 import * as dayjs from 'dayjs';
 import { Gender } from '@prisma/client';
-import { haversineDistance } from '../utils/math';
 import { ParsedMatchFilters } from './dto/match-filters.dto';
 
 function isValidQuizAnswers(value: any): value is Record<string, string[]> {
@@ -192,20 +191,38 @@ async addPhotos(userId: string, photoUrls: string[]) {
       isValidQuizAnswers(currentUser.userProfile?.quizAnswers),
   )
   .map((user) => {
-    const profile = user.userProfile!;
-    const score =
-      calculateCompatibilityScore(
-        currentUser.userProfile.quizAnswers as Record<string, string[]>,
-        profile.quizAnswers as Record<string, string[]>,
-      ) || 0;
+  const profile = user.userProfile!;
+  const score = calculateCompatibilityScore(
+    currentUser.userProfile.quizAnswers as Record<string, string[]>,
+    profile.quizAnswers as Record<string, string[]>,
+  ) || 0;
 
-    return {
-      id: user.id,
-      fullName: profile.fullName,
-      photos: profile.photos,
-      compatibilityScore: score,
-    };
-  })
+  let distanceKm: number | null = null;
+
+  if (
+    currentUser.userProfile?.latitude != null &&
+    currentUser.userProfile?.longitude != null &&
+    profile.latitude != null &&
+    profile.longitude != null
+  ) {
+    distanceKm = calculateDistanceKm(
+      currentUser.userProfile.latitude,
+      currentUser.userProfile.longitude,
+      profile.latitude,
+      profile.longitude,
+    );
+  }
+
+  return {
+    id: user.id,
+    fullName: profile.fullName,
+    photos: profile.photos,
+    compatibilityScore: score,
+    location: profile.location || null,
+    distanceKm, // ✅ Add this
+  };
+})
+
   .sort((a, b) => b.compatibilityScore - a.compatibilityScore);
 
 
@@ -248,9 +265,9 @@ return {
   fallbackUsed: true,
 };
 
+
+
 }
-
-
 
 
   async getUserProfile(userId: string) {
@@ -608,12 +625,13 @@ if (
       profile.latitude != null &&
       profile.longitude != null
     ) {
-      distanceKm = haversineDistance(
-        filters.lat,
-        filters.lng,
-        profile.latitude,
-        profile.longitude,
-      );
+      distanceKm = calculateDistanceKm(
+  filters.lat,
+  filters.lng,
+  profile.latitude,
+  profile.longitude,
+);
+
     }
 
     return {
