@@ -297,5 +297,11 @@ async updateBio(
   return this.userService.updateBio(userId, dto.bio);
 }
 
+@UseGuards(JwtAuthGuard)
+@Post('set-bio')
+async setBio(@GetUser('id') userId: string, @Body() dto: UpdateBioDto) {
+  return this.userService.setBio(userId, dto.bio);
+}
+
 
 }

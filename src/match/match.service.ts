@@ -89,16 +89,16 @@ async getPeopleWhoLikedMe(userId: string) {
     where: { id: userId },
   });
 
-  const isSubscribed = user?.isPremium ?? false;
+  // 👇 Temporarily skip premium check for testing
+  // const isSubscribed = user?.isPremium ?? false;
 
-  if (!isSubscribed) {
-    return {
-      isSubscribed: false,
-      users: [],
-    };
-  }
+  // if (!isSubscribed) {
+  //   return {
+  //     isSubscribed: false,
+  //     users: [],
+  //   };
+  // }
 
-  // Find all users who liked me (including matches)
   const likes = await this.prisma.matchInteraction.findMany({
     where: {
       targetId: userId,
@@ -123,10 +123,11 @@ async getPeopleWhoLikedMe(userId: string) {
   }));
 
   return {
-    isSubscribed: true,
+    isSubscribed: user?.isPremium ?? false,
     users,
   };
 }
+
 
 
 }

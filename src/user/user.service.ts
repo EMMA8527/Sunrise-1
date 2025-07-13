@@ -666,4 +666,23 @@ async updateBio(userId: string, bio: string) {
   return { message: 'Bio updated successfully' };
 }
 
+async setBio(userId: string, bio: string) {
+  const userProfile = await this.prisma.userProfile.findUnique({
+    where: { userId },
+  });
+
+  if (!userProfile) {
+    await this.prisma.userProfile.create({
+      data: { userId, bio },
+    });
+  } else {
+    await this.prisma.userProfile.update({
+      where: { userId },
+      data: { bio },
+    });
+  }
+
+  return { message: 'Bio set successfully' };
+}
+
 }
