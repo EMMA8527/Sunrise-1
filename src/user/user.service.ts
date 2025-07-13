@@ -16,6 +16,11 @@ import { Gender } from '@prisma/client';
 import { haversineDistance } from '../utils/math';
 import { ParsedMatchFilters } from './dto/match-filters.dto';
 
+function isValidQuizAnswers(value: any): value is Record<string, string[]> {
+  return typeof value === 'object' && !Array.isArray(value) && value !== null;
+}
+
+
 @Injectable()
 export class UserService {
   constructor(
@@ -181,27 +186,28 @@ async addPhotos(userId: string, photoUrls: string[]) {
   const safeLimit = Math.min(Math.max(filters?.limit || 10, 1), 100);
 
   const matchedCandidates = candidates
-    .filter(
-      (user) =>
-        user.userProfile?.quizAnswers &&
-        currentUser.userProfile?.quizAnswers,
-    )
-    .map((user) => {
-      const profile = user.userProfile!;
-      const score =
-        calculateCompatibilityScore(
-          currentUser.userProfile.quizAnswers,
-          profile.quizAnswers,
-        ) || 0;
+  .filter(
+    (user) =>
+      isValidQuizAnswers(user.userProfile?.quizAnswers) &&
+      isValidQuizAnswers(currentUser.userProfile?.quizAnswers),
+  )
+  .map((user) => {
+    const profile = user.userProfile!;
+    const score =
+      calculateCompatibilityScore(
+        currentUser.userProfile.quizAnswers as Record<string, string[]>,
+        profile.quizAnswers as Record<string, string[]>,
+      ) || 0;
 
-      return {
-        id: user.id,
-        fullName: profile.fullName,
-        photos: profile.photos,
-        compatibilityScore: score,
-      };
-    })
-    .sort((a, b) => b.compatibilityScore - a.compatibilityScore);
+    return {
+      id: user.id,
+      fullName: profile.fullName,
+      photos: profile.photos,
+      compatibilityScore: score,
+    };
+  })
+  .sort((a, b) => b.compatibilityScore - a.compatibilityScore);
+
 
   const paged = matchedCandidates.slice(
     (safePage - 1) * safeLimit,
@@ -581,10 +587,18 @@ async searchUsers(
     const age = profile.birthday ? dayjs().diff(profile.birthday, 'year') : null;
 
     // Compatibility score
-    const compatibilityScore = calculateCompatibilityScore(
-      currentUser.userProfile?.quizAnswers,
-      profile.quizAnswers,
-    );
+    let compatibilityScore = 0;
+
+if (
+  isValidQuizAnswers(currentUser.userProfile?.quizAnswers) &&
+  isValidQuizAnswers(profile.quizAnswers)
+) {
+  compatibilityScore = calculateCompatibilityScore(
+    currentUser.userProfile.quizAnswers as Record<string, string[]>,
+    profile.quizAnswers as Record<string, string[]>,
+  );
+}
+
 
     // Distance (if coords available)
     let distanceKm: number | null = null;
