@@ -44,6 +44,7 @@ export function serializeUser(user: any) {
       location: {
         latitude: user.userProfile?.latitude,
         longitude: user.userProfile?.longitude,
+        bio,
       },
     },
   };
