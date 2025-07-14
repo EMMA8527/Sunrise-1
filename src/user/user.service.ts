@@ -220,6 +220,7 @@ async addPhotos(userId: string, photoUrls: string[]) {
     compatibilityScore: score,
     location: profile.location || null,
     distanceKm, // ✅ Add this
+    bio,
   };
 })
 
@@ -324,6 +325,7 @@ return {
       profileCompletionStep: user.userProfile?.profileCompletionStep ?? 0,
       quizAnswers: user.userProfile?.quizAnswers,
       boostedAt: user.userProfile?.boostedAt,
+      bio,
       location: {
         latitude: user.userProfile?.latitude,
         longitude: user.userProfile?.longitude,
@@ -512,6 +514,7 @@ async getUserMiniProfile(userId: string, viewerId: string) {
     photo: profile.photos?.[0] ||
       'https://media.istockphoto.com/id/1495088043/vector/user-profile-icon-avatar-or-person-icon-profile-picture-portrait-symbol-default-portrait.jpg?s=1024x1024&w=is&k=20&c=oGqYHhfkz_ifeE6-dID6aM7bLz38C6vQTy1YcbgZfx8=',
     isMatched: !!match,
+    bio,
   };
 }
 
@@ -702,5 +705,22 @@ async setBio(userId: string, bio: string) {
 
   return { message: 'Bio set successfully' };
 }
+
+// user.service.ts or profile.service.ts
+async getUserBio(userId: string) {
+  const userProfile = await this.prisma.userProfile.findUnique({
+    where: { userId },
+    select: {
+      bio: true,
+    },
+  });
+
+  if (!userProfile) throw new NotFoundException('User profile not found');
+
+  return {
+    bio: userProfile.bio || '',
+  };
+}
+
 
 }

@@ -303,5 +303,17 @@ async setBio(@GetUser('id') userId: string, @Body() dto: UpdateBioDto) {
   return this.userService.setBio(userId, dto.bio);
 }
 
+// user.controller.ts or profile.controller.ts
+@UseGuards(JwtAuthGuard)
+@Get('bio')
+async getBio(@GetUser('id') userId: string) {
+  return this.userService.getUserBio(userId);
+}
+
+@Get('bio/:id')
+async getUserBioById(@Param('id') userId: string) {
+  return this.userService.getUserBio(userId);
+}
+
 
 }
