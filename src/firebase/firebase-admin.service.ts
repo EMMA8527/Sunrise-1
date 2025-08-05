@@ -1,7 +1,7 @@
 /* eslint-disable prettier/prettier*/
  import { Injectable, OnModuleInit } from '@nestjs/common';
 import * as admin from 'firebase-admin';
-import * as serviceAccount from '../../google-services.json'; // JSON you download from Firebase console
+import * as serviceAccount from '../../service-account-file.json'; // JSON you download from Firebase console
 
 @Injectable()
 export class FirebaseAdminService implements OnModuleInit {
