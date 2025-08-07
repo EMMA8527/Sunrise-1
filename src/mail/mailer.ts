@@ -3,8 +3,8 @@ import * as nodemailer from 'nodemailer';
 
 export const transporter = nodemailer.createTransport({
   host: 'mail.privateemail.com',
-  port: 465,
-  secure: true, //use true for port 465 if needed
+  port: 587,
+  secure: false, //use true for port 465 if needed
   auth: {
     user: process.env.EMAIL_USER, // set this in your .env
     pass: process.env.EMAIL_PASSWORD, // set this in your .env
