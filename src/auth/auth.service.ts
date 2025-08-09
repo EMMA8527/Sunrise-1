@@ -311,6 +311,7 @@ async resetPassword(dto: ResetPasswordDto) {
 }
 
 async resendOtp(dto: ResendOtpDto) {
+  const { email } = dto;
     const user = await this.prisma.user.findUnique({ where: { email }, include: { otp: true } });
     if (!user) throw new NotFoundException('User not found');
     if (user.isVerified) throw new BadRequestException('User already verified');
