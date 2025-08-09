@@ -59,6 +59,7 @@ model OTP {
   id        String   @id @default(uuid())
   code      String
   userId    String
+  phone     String?
   expiresAt DateTime
   verified  Boolean  @default(false)
   createdAt DateTime @default(now())

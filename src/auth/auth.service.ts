@@ -82,7 +82,7 @@ export class AuthService {
 
   
 
-  async verifyOtp(dto: VerifyOtpDto) {
+  async verifyOtp(email: string, code: string) {
     const user = await this.prisma.user.findUnique({
       where: { email },
       include: { otp: { orderBy: { createdAt: 'desc' }, take: 1 } },
