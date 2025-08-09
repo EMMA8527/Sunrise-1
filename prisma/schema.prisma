@@ -17,6 +17,7 @@ enum UserStatus {
   ACTIVE
   BANNED
   PENDING
+  PENDING_VERIFICATION
 }
 
 
@@ -25,44 +26,41 @@ model User {
   email           String       @unique
   password        String?
   phone           String?      @unique
-  isPremium         Boolean   @default(false)
-  premiumSince  DateTime?
-  premiumExpires    DateTime?
-  streakCount       Int       @default(0)
-  lastStreakDate    DateTime?
+  isPremium       Boolean      @default(false)
+  premiumSince    DateTime?
+  premiumExpires  DateTime?
+  streakCount     Int          @default(0)
+  lastStreakDate  DateTime?
   isVerified      Boolean      @default(false)
   isPhoneVerified Boolean      @default(false)
   isFaceVerified  Boolean      @default(false)
-  provider        String       @default("email") // 'email', 'google', 'facebook', 'apple'
+  provider        String       @default("email")
   name            String?
   country         String?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
   otp             OTP[]
-  status       UserStatus   @default(PENDING)
-  userProfile     UserProfile?
-  role     UserRole @default(USER)
-  firebaseToken String?
+  status          UserStatus   @default(PENDING)
+  role            UserRole     @default(USER)
+  firebaseToken   String?
+  verificationDeadline DateTime?
 
   sentInteractions     MatchInteraction[] @relation("UserSentInteractions")
   receivedInteractions MatchInteraction[] @relation("UserReceivedInteractions")
 
-   sentMessages     Message[] @relation("SentMessages")
+  sentMessages     Message[] @relation("SentMessages")
   receivedMessages Message[] @relation("ReceivedMessages")
 
-  ProfileBoost ProfileBoost[]
+  ProfileBoost     ProfileBoost[]
 }
-
 model OTP {
   id        String   @id @default(uuid())
   code      String
-  email     String?
-  phone     String?
+  userId    String
   expiresAt DateTime
   verified  Boolean  @default(false)
-  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String?
   createdAt DateTime @default(now())
+   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model UserProfile {

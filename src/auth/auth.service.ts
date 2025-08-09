@@ -22,6 +22,7 @@ import { serializeUser } from '../common/utils/serialize-user'; // adjust path a
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   constructor(private prisma: PrismaService, private jwt: JwtService,) {}
 
   private async signToken(
@@ -35,137 +36,95 @@ export class AuthService {
     );
   }
 
+  private generateOtp() {
+    return randomInt(1000, 9999).toString();
+  }
+
  async signup(dto: SignupDto) {
-  const existingUser = await this.prisma.user.findUnique({ where: { email: dto.email } });
-  if (existingUser) throw new BadRequestException('Email already registered');
+    const existingUser = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    if (existingUser) throw new BadRequestException('Email already registered');
 
-  const hashedPassword = await bcrypt.hash(dto.password, 10);
-  const otp = randomInt(1000, 9999).toString();
-  const expiresAt = dayjs().add(72, 'hours').toDate(); // 3 days to verify
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    const otpCode = this.generateOtp();
 
-  // Create user as unverified
-  const user = await this.prisma.user.create({
-    data: {
-      email: dto.email,
-      password: hashedPassword,
-      country: dto.country,
-      isVerified: false,
-      status: 'PENDING',
-      verificationExpiresAt: expiresAt,
-      userProfile: {
-        create: {
-          profileCompletionStep: 0,
-          intentions: [],
-          photos: [],
+    // Create user with PENDING_VERIFICATION status and verification deadline
+    const verificationDeadline = dayjs().add(72, 'hours').toDate();
+
+    const user = await this.prisma.user.create({
+      data: {
+        email: dto.email,
+        password: hashedPassword,
+        country: dto.country,
+        isVerified: false,
+        status: 'PENDING_VERIFICATION',
+        verificationDeadline,
+        otp: {
+          create: {
+            code: otpCode,
+            expiresAt: dayjs().add(10, 'minutes').toDate(),
+          },
         },
       },
-    },
-    include: { userProfile: true },
-  });
+      include: { otp: true },
+    });
 
-  // Save OTP for verification
-  const hashedPassword = await bcrypt.hash(dto.password, 10);
+    // Send OTP email (do not block signup)
+    try {
+      await sendOtpEmail(user.email, otpCode);
+    } catch (error) {
+      this.logger.warn(`Failed to send OTP email to ${user.email}: ${error.message}`);
+    }
 
-await this.prisma.pendingSignup.create({
-  data: {
-    email: dto.email,
-    hashedPassword,
-    country: dto.country,
-    otp,
-    expiresAt: dayjs().add(10, 'minutes').toDate(),
-  },
-});
-  try {
-    await sendOtpEmail(dto.email, otp);
-  } catch (err) {
-    console.error(`Failed to send OTP to ${dto.email}:`, err.message);
+    return { message: 'Account created. Please verify your email within 72 hours.' };
   }
 
-  const token = await this.signToken(user.id, user.email, user.role);
+  
 
-  return {
-    accessToken: token,
-    user: serializeUser(user),
-    message: 'Signup successful. Please verify your email within 72 hours.',
-  };
-}
+  async verifyEmail(email: string, code: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      include: { otp: { orderBy: { createdAt: 'desc' }, take: 1 } },
+    });
+    if (!user) throw new NotFoundException('User not found');
 
+    const latestOtp = user.otp[0];
+    if (!latestOtp) throw new BadRequestException('No OTP found, please request a new one');
+    if (latestOtp.code !== code) throw new BadRequestException('Invalid OTP code');
+    if (latestOtp.expiresAt < new Date()) throw new BadRequestException('OTP expired');
 
-  async verifyOtp(dto: VerifyOtpDto) {
-  // Find pending signup by email
-  const pending = await this.prisma.pendingSignup.findUnique({ where: { email: dto.email } });
+    // Update user to verified and active
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        isVerified: true,
+        status: 'ACTIVE',
+        verificationDeadline: null,
+      },
+    });
 
-  if (!pending) {
-    throw new BadRequestException('No signup found for this email');
+    // Optionally mark OTP as verified or delete them
+    await this.prisma.oTP.deleteMany({ where: { userId: user.id } });
+
+    return { message: 'Email verified successfully' };
   }
 
-  // Validate OTP and expiry
-  if (pending.otp !== dto.code) {
-    throw new ForbiddenException('Invalid OTP');
-  }
-  if (pending.expiresAt < new Date()) {
-    throw new ForbiddenException('OTP expired');
-  }
+// Scheduled cleanup to delete unverified users after deadline
+  // Use @Cron decorator from @nestjs/schedule on this method, e.g. every hour
+  async cleanupExpiredUsers() {
+    const now = new Date();
+    const deleted = await this.prisma.user.deleteMany({
+      where: {
+        status: 'PENDING_VERIFICATION',
+        isVerified: false,
+        verificationDeadline: { lt: now },
+      },
+    });
 
-  // Check if user already exists (extra safety)
-  const existingUser = await this.prisma.user.findUnique({ where: { email: dto.email } });
-  if (existingUser) {
-    if (existingUser.isVerified) {
-      throw new BadRequestException('User already verified');
-    } else {
-      // User exists but not verified, mark verified and return token
-      const updatedUser = await this.prisma.user.update({
-        where: { email: dto.email },
-        data: { isVerified: true,  status: 'ACTIVE',},
-        include: { userProfile: true },
-      });
-
-      // Delete pending signup record
-      await this.prisma.pendingSignup.delete({ where: { email: dto.email } });
-
-      // Generate JWT token
-      const token = await this.signToken(updatedUser.id, updatedUser.email, updatedUser.role);
-
-      return {
-  accessToken: token,
-  user: serializeUser(updatedUser),
-};
-
+    if (deleted.count > 0) {
+      this.logger.warn(`Deleted ${deleted.count} expired unverified users.`);
     }
   }
 
-  // Create new user + profile
-  const user = await this.prisma.user.create({
-    data: {
-      email: pending.email,
-      password: pending.hashedPassword,
-      country: pending.country,
-      isVerified: true,
-       status: 'ACTIVE',
-      userProfile: {
-        create: {
-          profileCompletionStep: 0,
-          intentions: [],
-          photos: [],
-          // add other default userProfile fields as needed
-        },
-      },
-    },
-    include: { userProfile: true },
-  });
-
-  // Delete pending signup record
-  await this.prisma.pendingSignup.delete({ where: { email: dto.email } });
-
-  // Generate JWT token
-  const token = await this.signToken(user.id, user.email, user.role);
-
-  return {
-  accessToken: token,
-  user: serializeUser(user),
-};
-
-}
 
 
 
@@ -348,31 +307,34 @@ async resetPassword(dto: ResetPasswordDto) {
   return { message: 'Password reset successful 🔒' };
 }
 
-async resendOtp(dto: ResendOtpDto) {
-  const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
-  if (user?.isVerified) {
-    throw new BadRequestException('User is already verified');
+async resendOtp(email: string) {
+    const user = await this.prisma.user.findUnique({ where: { email }, include: { otp: true } });
+    if (!user) throw new NotFoundException('User not found');
+    if (user.isVerified) throw new BadRequestException('User already verified');
+
+    const newOtp = this.generateOtp();
+    const expiresAt = dayjs().add(10, 'minutes').toDate();
+
+    // Delete old OTPs
+    await this.prisma.oTP.deleteMany({ where: { userId: user.id } });
+
+    // Create new OTP record
+    await this.prisma.oTP.create({
+      data: {
+        code: newOtp,
+        expiresAt,
+        userId: user.id,
+      },
+    });
+
+    // Send email, ignore failures here
+    try {
+      await sendOtpEmail(user.email, newOtp);
+    } catch (error) {
+      this.logger.warn(`Failed to resend OTP to ${user.email}: ${error.message}`);
+    }
+
+    return { message: 'OTP resent successfully' };
   }
-
-  const pending = await this.prisma.pendingSignup.findUnique({ where: { email: dto.email } });
-
-  if (!pending) {
-    throw new BadRequestException('No signup session found for this email');
-  }
-
-  const newOtp = randomInt(1000, 9999).toString();
-  const newExpiry = dayjs().add(10, 'minutes').toDate();
-
-  await this.prisma.pendingSignup.update({
-    where: { email: dto.email },
-    data: { otp: newOtp, expiresAt: newExpiry },
-  });
-
-  await sendOtpEmail(dto.email, newOtp);
-  console.log(`Resent OTP to ${dto.email}: ${newOtp}`);
-
-  return { message: 'OTP resent successfully ✅' };
-}
-
 
 } 
