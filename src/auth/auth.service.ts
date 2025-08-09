@@ -50,7 +50,7 @@ export class AuthService {
       password: hashedPassword,
       country: dto.country,
       isVerified: false,
-      status: 'PENDING_VERIFICATION',
+      status: 'PENDING',
       verificationExpiresAt: expiresAt,
       userProfile: {
         create: {
@@ -64,10 +64,17 @@ export class AuthService {
   });
 
   // Save OTP for verification
-  await this.prisma.pendingSignup.create({
-    data: { email: dto.email, otp, expiresAt: dayjs().add(10, 'minutes').toDate() },
-  });
+  const hashedPassword = await bcrypt.hash(dto.password, 10);
 
+await this.prisma.pendingSignup.create({
+  data: {
+    email: dto.email,
+    hashedPassword,
+    country: dto.country,
+    otp,
+    expiresAt: dayjs().add(10, 'minutes').toDate(),
+  },
+});
   try {
     await sendOtpEmail(dto.email, otp);
   } catch (err) {
