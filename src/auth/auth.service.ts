@@ -36,36 +36,51 @@ export class AuthService {
   }
 
  async signup(dto: SignupDto) {
-  const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
-  if (user) {
-    if (user.isVerified) {
-      throw new BadRequestException('Email already registered and verified');
-    } else {
-      throw new BadRequestException('Email registered but not verified. Please verify or resend OTP.');
-    }
-  }
-
-  const existingPending = await this.prisma.pendingSignup.findUnique({
-    where: { email: dto.email },
-  });
-
-  if (existingPending && existingPending.expiresAt > new Date()) {
-    throw new BadRequestException('OTP already sent. Please wait or request a resend.');
-  }
+  const existingUser = await this.prisma.user.findUnique({ where: { email: dto.email } });
+  if (existingUser) throw new BadRequestException('Email already registered');
 
   const hashedPassword = await bcrypt.hash(dto.password, 10);
   const otp = randomInt(1000, 9999).toString();
-  const expiresAt = dayjs().add(10, 'minutes').toDate();
+  const expiresAt = dayjs().add(72, 'hours').toDate(); // 3 days to verify
 
-  await this.prisma.pendingSignup.upsert({
-    where: { email: dto.email },
-    update: { hashedPassword, otp, expiresAt, country: dto.country },
-    create: { email: dto.email, hashedPassword, otp, expiresAt, country: dto.country },
+  // Create user as unverified
+  const user = await this.prisma.user.create({
+    data: {
+      email: dto.email,
+      password: hashedPassword,
+      country: dto.country,
+      isVerified: false,
+      status: 'PENDING_VERIFICATION',
+      verificationExpiresAt: expiresAt,
+      userProfile: {
+        create: {
+          profileCompletionStep: 0,
+          intentions: [],
+          photos: [],
+        },
+      },
+    },
+    include: { userProfile: true },
   });
 
-  await sendOtpEmail(dto.email, otp);
-  console.log(`OTP sent to ${dto.email}: ${otp}`);
-  return { message: 'Signup initiated. OTP sent to email.' };
+  // Save OTP for verification
+  await this.prisma.pendingSignup.create({
+    data: { email: dto.email, otp, expiresAt: dayjs().add(10, 'minutes').toDate() },
+  });
+
+  try {
+    await sendOtpEmail(dto.email, otp);
+  } catch (err) {
+    console.error(`Failed to send OTP to ${dto.email}:`, err.message);
+  }
+
+  const token = await this.signToken(user.id, user.email, user.role);
+
+  return {
+    accessToken: token,
+    user: serializeUser(user),
+    message: 'Signup successful. Please verify your email within 72 hours.',
+  };
 }
 
 
@@ -199,21 +214,13 @@ export class AuthService {
   }
   
 
-  async login(dto: LoginDto) { 
-  const user = await this.prisma.user.findUnique({ 
+  async login(dto: LoginDto) {
+  const user = await this.prisma.user.findUnique({
     where: { email: dto.email },
-    include: { userProfile: true },  // include profile data
+    include: { userProfile: true },
   });
 
-  if (!user) {
-    const pending = await this.prisma.pendingSignup.findUnique({ where: { email: dto.email } });
-    if (pending) {
-      throw new ForbiddenException('Please verify your email before logging in');
-    }
-    throw new ForbiddenException('Invalid credentials');
-  }
-
-  if (!user.isVerified) throw new ForbiddenException('Please verify your email first');
+  if (!user) throw new ForbiddenException('Invalid credentials');
 
   const isMatch = await bcrypt.compare(dto.password, user.password);
   if (!isMatch) throw new ForbiddenException('Invalid credentials');
@@ -223,6 +230,10 @@ export class AuthService {
   return {
     accessToken: token,
     user: serializeUser(user),
+    isVerified: user.isVerified,
+    message: user.isVerified
+      ? 'Login successful'
+      : 'Login successful, but please verify your email within 72 hours.',
   };
 }
 
