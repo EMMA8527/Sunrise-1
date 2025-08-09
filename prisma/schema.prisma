@@ -44,6 +44,8 @@ model User {
   role            UserRole     @default(USER)
   firebaseToken   String?
   verificationDeadline DateTime?
+  userProfile UserProfile? @relation()
+
 
   sentInteractions     MatchInteraction[] @relation("UserSentInteractions")
   receivedInteractions MatchInteraction[] @relation("UserReceivedInteractions")
