@@ -1,5 +1,5 @@
 /* eslint-disable prettier/prettier */
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger, NotFoundException } from '@nestjs/common';
 import { SignupDto } from './dto/signup.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
@@ -17,6 +17,8 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ResendOtpDto } from './dto/resend-otp.dto';
 import { serializeUser } from '../common/utils/serialize-user'; // adjust path as needed
+import { UserStatus } from '@prisma/client';
+
 
 
 
@@ -56,7 +58,7 @@ export class AuthService {
         password: hashedPassword,
         country: dto.country,
         isVerified: false,
-        status: 'PENDING_VERIFICATION',
+        status:  UserStatus.PENDING_VERIFICATION,
         verificationDeadline,
         otp: {
           create: {
@@ -80,7 +82,7 @@ export class AuthService {
 
   
 
-  async verifyEmail(email: string, code: string) {
+  async verifyOtp(dto: VerifyOtpDto) {
     const user = await this.prisma.user.findUnique({
       where: { email },
       include: { otp: { orderBy: { createdAt: 'desc' }, take: 1 } },
@@ -97,7 +99,7 @@ export class AuthService {
       where: { id: user.id },
       data: {
         isVerified: true,
-        status: 'ACTIVE',
+        status:  UserStatus.ACTIVE,
         verificationDeadline: null,
       },
     });
@@ -114,7 +116,7 @@ export class AuthService {
     const now = new Date();
     const deleted = await this.prisma.user.deleteMany({
       where: {
-        status: 'PENDING_VERIFICATION',
+        status:  UserStatus.PENDING_VERIFICATION,
         isVerified: false,
         verificationDeadline: { lt: now },
       },
@@ -307,7 +309,7 @@ async resetPassword(dto: ResetPasswordDto) {
   return { message: 'Password reset successful 🔒' };
 }
 
-async resendOtp(email: string) {
+async resendOtp(dto: ResendOtpDto) {
     const user = await this.prisma.user.findUnique({ where: { email }, include: { otp: true } });
     if (!user) throw new NotFoundException('User not found');
     if (user.isVerified) throw new BadRequestException('User already verified');
